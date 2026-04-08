@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="60%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#1e1035"/>
+    </linearGradient>
+
+    <!-- Shield gradient -->
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+
+    <!-- Title gradient -->
+    <linearGradient id="title-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a5b4fc"/>
+      <stop offset="100%" stop-color="#c4b5fd"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft glow for shield -->
+    <filter id="shield-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <clipPath id="rounded-clip">
+      <rect width="1200" height="630" rx="0"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg-grad)"/>
+
+  <!-- Decorative grid lines -->
+  <g opacity="0.06" stroke="#a5b4fc" stroke-width="1">
+    <!-- Horizontal -->
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <!-- Vertical -->
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Ambient glow circles (decorative) -->
+  <circle cx="950" cy="315" r="260" fill="#6366f1" opacity="0.07"/>
+  <circle cx="250" cy="580" r="180" fill="#7c3aed" opacity="0.06"/>
+  <circle cx="100" cy="80" r="120" fill="#4f46e5" opacity="0.05"/>
+
+  <!-- Large decorative shield (right side) -->
+  <g transform="translate(820, 90)" filter="url(#shield-glow)">
+    <!-- Shield glow blob -->
+    <ellipse cx="190" cy="225" rx="130" ry="130" fill="#6366f1" opacity="0.18"/>
+
+    <!-- Shield body -->
+    <path d="M190 20 L340 75 L340 195 C340 285 272 350 190 385 C108 350 40 285 40 195 L40 75 Z"
+          fill="url(#shield-grad)" opacity="0.95"/>
+
+    <!-- Inner shield -->
+    <path d="M190 48 L318 96 L318 195 C318 272 258 330 190 361 C122 330 62 272 62 195 L62 96 Z"
+          fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+
+    <!-- Eye shape -->
+    <ellipse cx="190" cy="210" rx="72" ry="44" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="5"/>
+
+    <!-- Eye pupil outer -->
+    <circle cx="190" cy="210" r="28" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.6)" stroke-width="3"/>
+
+    <!-- Eye pupil inner -->
+    <circle cx="190" cy="210" r="16" fill="white" opacity="0.95"/>
+    <circle cx="190" cy="210" r="10" fill="#4338ca"/>
+    <circle cx="190" cy="210" r="5" fill="#1e1b4b"/>
+
+    <!-- Eye glint -->
+    <circle cx="198" cy="204" r="4" fill="white" opacity="0.9"/>
+
+    <!-- Scan lines in eye -->
+    <line x1="120" y1="192" x2="260" y2="192" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <line x1="120" y1="228" x2="260" y2="228" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="5,4"/>
+
+    <!-- Lashes top -->
+    <line x1="190" y1="166" x2="190" y2="154" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="155" y1="174" x2="148" y2="163" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="225" y1="174" x2="232" y2="163" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Decorative dots on shield border -->
+    <circle cx="190" cy="35" r="4" fill="rgba(255,255,255,0.5)"/>
+    <circle cx="330" cy="82" r="3" fill="rgba(255,255,255,0.3)"/>
+    <circle cx="50" cy="82" r="3" fill="rgba(255,255,255,0.3)"/>
+  </g>
+
+  <!-- Left side: text content -->
+
+  <!-- Badge pill -->
+  <rect x="72" y="110" width="310" height="38" rx="19" fill="rgba(99,102,241,0.2)" stroke="rgba(99,102,241,0.5)" stroke-width="1.5"/>
+  <text x="127" y="134" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="#a5b4fc" letter-spacing="0.5">
+    Piauí — Monitoramento Eleitoral
+  </text>
+  <!-- Badge dot -->
+  <circle cx="103" cy="129" r="5" fill="#6366f1"/>
+  <circle cx="103" cy="129" r="3" fill="#a5b4fc"/>
+
+  <!-- Main title "Eleito" -->
+  <text x="72" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="900" fill="white" letter-spacing="-2">Eleito</text>
+
+  <!-- Main title "Watch" (gradient) -->
+  <text x="72" y="370" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="900" fill="url(#title-grad)" letter-spacing="-2">Watch</text>
+
+  <!-- Divider line -->
+  <rect x="72" y="400" width="80" height="4" rx="2" fill="#6366f1"/>
+
+  <!-- Description -->
+  <text x="72" y="450" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#94a3b8" letter-spacing="0.2">
+    Plataforma de registro e monitoramento
+  </text>
+  <text x="72" y="480" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#94a3b8" letter-spacing="0.2">
+    de ocorrências eleitorais — TRE-PI
+  </text>
+
+  <!-- Feature pills -->
+  <rect x="72" y="515" width="148" height="32" rx="16" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.35)" stroke-width="1"/>
+  <text x="96" y="536" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#a5b4fc">Tempo Real</text>
+
+  <rect x="232" y="515" width="136" height="32" rx="16" fill="rgba(124,58,237,0.15)" stroke="rgba(124,58,237,0.35)" stroke-width="1"/>
+  <text x="255" y="536" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#c4b5fd">Geolocalização</text>
+
+  <rect x="380" y="515" width="108" height="32" rx="16" fill="rgba(79,70,229,0.15)" stroke="rgba(79,70,229,0.35)" stroke-width="1"/>
+  <text x="402" y="536" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#a5b4fc">Seguro</text>
+
+  <!-- Bottom border accent -->
+  <rect x="0" y="620" width="1200" height="10" fill="url(#shield-grad)" opacity="0.8"/>
+</svg>

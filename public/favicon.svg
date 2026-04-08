@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="eye-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c7d2fe"/>
+      <stop offset="100%" stop-color="#e0e7ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield body -->
+  <path d="M16 2.5 L27.5 7 L27.5 16.5 C27.5 22.8 22.4 27.8 16 30.5 C9.6 27.8 4.5 22.8 4.5 16.5 L4.5 7 Z"
+        fill="url(#shield-grad)"/>
+
+  <!-- Inner shield highlight -->
+  <path d="M16 5 L25 8.8 L25 16.5 C25 21.5 21 25.6 16 27.8 C11 25.6 7 21.5 7 16.5 L7 8.8 Z"
+        fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+
+  <!-- Eye shape -->
+  <ellipse cx="16" cy="16" rx="5.5" ry="3.5" fill="none" stroke="url(#eye-grad)" stroke-width="1.8"/>
+
+  <!-- Eye pupil -->
+  <circle cx="16" cy="16" r="2" fill="white"/>
+  <circle cx="16" cy="16" r="1" fill="#6366f1"/>
+
+  <!-- Eye glint -->
+  <circle cx="17" cy="15.2" r="0.5" fill="white"/>
+
+  <!-- Scan line top -->
+  <line x1="11" y1="13.5" x2="21" y2="13.5" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" stroke-dasharray="1.5,1"/>
+  <!-- Scan line bottom -->
+  <line x1="11" y1="18.5" x2="21" y2="18.5" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" stroke-dasharray="1.5,1"/>
+</svg>
