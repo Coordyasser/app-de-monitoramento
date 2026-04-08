@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/c/Users/Pichau/Desktop/sessionviews/supabase/migrations\")",
+      "Bash(mkdir -p \"/c/Users/Pichau/Desktop/sessionviews/supabase/functions/sync-tre-pi-ckan\")",
+      "Bash(mkdir -p \"/c/Users/Pichau/Desktop/sessionviews/src/types\")",
+      "Bash(npm --version)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx supabase:*)",
+      "Bash(curl -s \"https://dados.tre-pi.jus.br/api/3/action/package_list\")",
+      "WebFetch(domain:dados.tre-pi.jus.br)",
+      "WebSearch",
+      "WebFetch(domain:dadosabertos.tre-pi.jus.br)",
+      "Bash(curl -s 'https://uwolbbdagxckbmrutmpl.supabase.co/rest/v1/secoes_eleitorais_pi?select=municipio&order=municipio&limit=10' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b2xiYmRhZ3hja2JtcnV0bXBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODM4NDQsImV4cCI6MjA5MTE1OTg0NH0.BL2AU3Tq0ktOEVp1z6GVq7xSq-MkDZDtC92RgMNbTVY' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b2xiYmRhZ3hja2JtcnV0bXBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODM4NDQsImV4cCI6MjA5MTE1OTg0NH0.BL2AU3Tq0ktOEVp1z6GVq7xSq-MkDZDtC92RgMNbTVY')",
+      "Bash(curl -s \"https://dadosabertos.tre-pi.jus.br/dataset/0b4ef207-10a9-4562-a144-d689817e784f/resource/6a06f14a-ad1b-420e-9d99-aa785ee2386b/download/locais-de-votacao.csv\")",
+      "Bash(curl:*)"
+    ]
+  }
+}
