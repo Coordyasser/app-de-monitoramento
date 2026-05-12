@@ -39,7 +39,7 @@ export function Topbar() {
                 <ShieldCheck size={18} className="text-white" />
               </div>
               <span className="font-bold text-lg text-gradient hidden sm:block">
-                EleitoWatch
+                Concept Plan
               </span>
             </Link>
 

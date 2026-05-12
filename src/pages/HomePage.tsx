@@ -43,7 +43,7 @@ export function HomePage() {
           Piauí — Monitoramento Eleitoral Oficial
         </div>
         <h1 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 leading-tight">
-          Elei<span className="text-gradient">toWatch</span>
+          Concept <span className="text-gradient">Plan</span>
         </h1>
         <p className="text-lg text-slate-600 dark:text-slate-300 max-w-xl mx-auto mb-8">
           Plataforma de registro e monitoramento de ocorrências eleitorais integrada com

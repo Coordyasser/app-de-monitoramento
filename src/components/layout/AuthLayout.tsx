@@ -21,7 +21,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
                         group-hover:shadow-indigo-500/60 transition-shadow">
           <ShieldCheck size={22} className="text-white" />
         </div>
-        <span className="text-2xl font-bold text-gradient">EleitoWatch</span>
+        <span className="text-2xl font-bold text-gradient">Concept Plan</span>
       </Link>
 
       {/* Card container */}

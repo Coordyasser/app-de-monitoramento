@@ -32,7 +32,7 @@ export function AcessoRevogadoPage() {
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-8">
           Suas credenciais foram revogadas por um administrador.
-          Entre em contato com a coordenação do EleitoWatch para mais informações.
+          Entre em contato com a coordenação do Concept Plan para mais informações.
         </p>
 
         <Button
