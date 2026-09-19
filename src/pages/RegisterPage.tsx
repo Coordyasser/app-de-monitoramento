@@ -59,10 +59,10 @@ export function RegisterPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-              Criar conta de agente
+              Solicitar cadastro
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Preencha seus dados para se cadastrar
+              Preencha seus dados para solicitar acesso à plataforma
             </p>
           </div>
         </div>

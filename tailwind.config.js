@@ -4,6 +4,10 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sora: ['Sora', 'system-ui', 'sans-serif'],
+        dm:   ['"DM Sans"', 'system-ui', 'sans-serif'],
+      },
       colors: {
         brand: {
           50:  '#eef2ff',

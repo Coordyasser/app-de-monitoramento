@@ -113,27 +113,27 @@
   <!-- Badge pill -->
   <rect x="72" y="110" width="310" height="38" rx="19" fill="rgba(99,102,241,0.2)" stroke="rgba(99,102,241,0.5)" stroke-width="1.5"/>
   <text x="127" y="134" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="#a5b4fc" letter-spacing="0.5">
-    Piauí — Monitoramento Eleitoral
+    Gestão de equipes em campo
   </text>
   <!-- Badge dot -->
   <circle cx="103" cy="129" r="5" fill="#6366f1"/>
   <circle cx="103" cy="129" r="3" fill="#a5b4fc"/>
 
-  <!-- Main title "Eleito" -->
-  <text x="72" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="900" fill="white" letter-spacing="-2">Eleito</text>
+  <!-- Main title "Concept" -->
+  <text x="72" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="900" fill="white" letter-spacing="-2">Concept</text>
 
-  <!-- Main title "Watch" (gradient) -->
-  <text x="72" y="370" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="900" fill="url(#title-grad)" letter-spacing="-2">Watch</text>
+  <!-- Main title "Plan" (gradient) -->
+  <text x="72" y="370" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="900" fill="url(#title-grad)" letter-spacing="-2">Plan</text>
 
   <!-- Divider line -->
   <rect x="72" y="400" width="80" height="4" rx="2" fill="#6366f1"/>
 
   <!-- Description -->
   <text x="72" y="450" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#94a3b8" letter-spacing="0.2">
-    Plataforma de registro e monitoramento
+    Registre, valide e acompanhe o trabalho
   </text>
   <text x="72" y="480" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#94a3b8" letter-spacing="0.2">
-    de ocorrências eleitorais — TRE-PI
+    da sua equipe em um só lugar
   </text>
 
   <!-- Feature pills -->

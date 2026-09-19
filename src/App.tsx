@@ -27,11 +27,13 @@ export default function App() {
             {/* Informativa — conta revogada */}
             <Route path="/acesso-revogado" element={<AcessoRevogadoPage />} />
 
-            {/* ── Semi-pública — denúncia anônima permitida ─────────── */}
-            <Route path="/buscar-secao"    element={<BuscarSecaoPage />}   />
-            <Route path="/ocorrencias/nova" element={<NovaOcorrenciaPage />} />
-
             {/* ── Autenticadas ──────────────────────────────────────── */}
+            <Route path="/buscar-secao" element={
+              <RequireAuth><BuscarSecaoPage /></RequireAuth>
+            } />
+            <Route path="/ocorrencias/nova" element={
+              <RequireAuth><NovaOcorrenciaPage /></RequireAuth>
+            } />
             <Route path="/settings" element={
               <RequireAuth><SettingsPage /></RequireAuth>
             } />

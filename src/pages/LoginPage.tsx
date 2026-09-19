@@ -51,7 +51,7 @@ export function LoginPage() {
               Entrar na plataforma
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Acesse com suas credenciais de agente
+              Use as credenciais fornecidas pela sua coordenação.
             </p>
           </div>
         </div>

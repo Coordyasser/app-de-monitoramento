@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
-  { to: '/buscar-secao',  label: 'Registrar',     icon: Search,          public: true  },
+  { to: '/buscar-secao',  label: 'Registrar',     icon: Search,          public: false },
   { to: '/ocorrencias',   label: 'Ocorrências',    icon: FileText,        public: false },
   { to: '/admin',         label: 'Dashboard',      icon: LayoutDashboard, admin: true   },
   { to: '/settings',      label: 'Configurações',  icon: Settings,        public: false },
