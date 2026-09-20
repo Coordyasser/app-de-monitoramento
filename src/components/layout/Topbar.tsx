@@ -1,13 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ShieldCheck, LayoutDashboard, Search, FileText, Settings, LogOut, Menu, X } from 'lucide-react'
+import { ShieldCheck, LayoutDashboard, FileText, PlusCircle, Settings, LogOut, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
-  { to: '/buscar-secao',  label: 'Registrar',     icon: Search,          public: false },
-  { to: '/ocorrencias',   label: 'Ocorrências',    icon: FileText,        public: false },
-  { to: '/admin',         label: 'Dashboard',      icon: LayoutDashboard, admin: true   },
-  { to: '/settings',      label: 'Configurações',  icon: Settings,        public: false },
+  { to: '/dashboard',      label: 'Dashboard',     icon: LayoutDashboard, public: false },
+  { to: '/registros/novo', label: 'Novo registro', icon: PlusCircle,      public: false },
+  { to: '/registros',      label: 'Registros',     icon: FileText,        public: false },
+  { to: '/settings',       label: 'Configurações', icon: Settings,        public: false },
 ]
 
 export function Topbar() {
@@ -16,11 +16,10 @@ export function Topbar() {
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const visibleItems = navItems.filter(item => {
-    if (item.admin) return profile?.role === 'admin'
-    if (!item.public) return !!profile
-    return true
-  })
+  const visibleItems = navItems.filter(item => item.public || !!profile)
+
+  // Comparação exata: /registros não pode acender junto com /registros/novo
+  const isActive = (to: string) => location.pathname === to
 
   async function handleSignOut() {
     await signOut()
@@ -46,7 +45,7 @@ export function Topbar() {
             {/* Nav desktop */}
             <nav className="hidden md:flex items-center gap-1">
               {visibleItems.map(({ to, label, icon: Icon }) => {
-                const active = location.pathname.startsWith(to)
+                const active = isActive(to)
                 return (
                   <Link
                     key={to}
@@ -111,7 +110,7 @@ export function Topbar() {
         <div className="md:hidden glass border-b border-white/20 dark:border-white/10 animate-slide-up">
           <nav className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1">
             {visibleItems.map(({ to, label, icon: Icon }) => {
-              const active = location.pathname.startsWith(to)
+              const active = isActive(to)
               return (
                 <Link
                   key={to}

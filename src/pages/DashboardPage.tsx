@@ -1,0 +1,296 @@
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  AlertCircle, CalendarDays, ClipboardList, Copy, LayoutDashboard,
+  MapPin, Plus, ShieldCheck, TrendingUp, Users,
+} from 'lucide-react'
+import { supabase }     from '@/lib/supabase'
+import { useAuth }      from '@/contexts/AuthContext'
+import { AppShell }     from '@/components/layout/AppShell'
+import { Button, Card, PageHeader } from '@/components/ui'
+import { MetricCard }   from '@/components/admin/MetricCard'
+import { AgentesTable } from '@/components/admin/AgentesTable'
+import { ProjecaoVotosCard } from '@/components/dashboard/ProjecaoVotosCard'
+import { TimelineChart } from '@/components/dashboard/TimelineChart'
+import { VinculoChart }  from '@/components/dashboard/VinculoChart'
+import { CidadeChart }   from '@/components/dashboard/CidadeChart'
+import {
+  ColaboradoresCard, DuplicadosCard, ZonaCoberturaCard,
+  type Colaborador, type Duplicado, type ZonaCobertura,
+} from '@/components/dashboard/ListasDashboard'
+import { RegistrosTable } from '@/components/registros/RegistrosTable'
+import type { RegistrosMetrics } from '@/types/database.types'
+
+// ── Stat compacto da faixa secundária ──────────────────────────────────────
+
+function StatCompacto({ icon, label, valor, detalhe, alerta = false, loading }: {
+  icon: ReactNode; label: string; valor: string; detalhe?: string
+  alerta?: boolean; loading: boolean
+}) {
+  return (
+    <Card padding="sm" className="flex items-center gap-3">
+      <span className={[
+        'p-2 rounded-xl shrink-0',
+        alerta
+          ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400'
+          : 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300',
+      ].join(' ')}>
+        {icon}
+      </span>
+      <div className="min-w-0">
+        {loading ? (
+          <div className="h-5 w-16 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+        ) : (
+          <p className="text-lg font-bold text-slate-800 dark:text-slate-100 tabular-nums leading-tight">
+            {valor}
+          </p>
+        )}
+        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{label}</p>
+        {detalhe && !loading && (
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{detalhe}</p>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+
+type Tab = 'visao' | 'equipe'
+
+// ── Página ─────────────────────────────────────────────────────────────────
+
+export function DashboardPage() {
+  const { profile } = useAuth()
+  const ehAdmin = profile?.role === 'admin'
+
+  const [tab, setTab] = useState<Tab>('visao')
+
+  const [metrics, setMetrics] = useState<RegistrosMetrics | null>(null)
+  const [serie,   setSerie]   = useState<{ dia: string; total: number }[]>([])
+  const [vinculos,      setVinculos]      = useState<{ vinculo: string; total: number }[]>([])
+  const [cidades,       setCidades]       = useState<{ cidade: string; total: number }[]>([])
+  const [zonas,         setZonas]         = useState<ZonaCobertura[]>([])
+  const [duplicados,    setDuplicados]    = useState<Duplicado[]>([])
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
+
+  const [dias,        setDias]        = useState(30)
+  const [loading,     setLoading]     = useState(true)
+  const [serieLoading, setSerieLoading] = useState(true)
+  const [erro,        setErro]        = useState<string | null>(null)
+
+  // ── Carga dos painéis ────────────────────────────────────────────────
+
+  const carregar = useCallback(async () => {
+    setLoading(true)
+    setErro(null)
+
+    const [m, v, c, z, d, col] = await Promise.all([
+      supabase.rpc('get_registros_metrics'),
+      supabase.rpc('get_registros_por_vinculo',     { p_limit: 12 }),
+      supabase.rpc('get_registros_por_cidade',      { p_limit: 10 }),
+      supabase.rpc('get_registros_por_zona',        { p_limit: 8  }),
+      supabase.rpc('get_registros_duplicados',      { p_limit: 8  }),
+      supabase.rpc('get_registros_por_colaborador', { p_limit: 8  }),
+    ])
+
+    const falha = [m, v, c, z, d, col].find(r => r.error)
+    if (falha?.error) setErro(falha.error.message)
+
+    if (m.data)   setMetrics(m.data as unknown as RegistrosMetrics)
+    if (v.data)   setVinculos(v.data)
+    if (c.data)   setCidades(c.data)
+    if (z.data)   setZonas(z.data)
+    if (d.data)   setDuplicados(d.data as Duplicado[])
+    if (col.data) setColaboradores(col.data as Colaborador[])
+
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  // Série temporal recarrega sozinha ao trocar o período
+  useEffect(() => {
+    let ativo = true
+    setSerieLoading(true)
+    supabase.rpc('get_registros_por_dia', { p_dias: dias }).then(({ data }) => {
+      if (!ativo) return
+      setSerie(data ?? [])
+      setSerieLoading(false)
+    })
+    return () => { ativo = false }
+  }, [dias])
+
+  // ── Tendências ───────────────────────────────────────────────────────
+
+  function variacao(atual: number, anterior: number): number {
+    if (anterior === 0) return atual > 0 ? 100 : 0
+    return ((atual - anterior) / anterior) * 100
+  }
+
+  const percentualValidado = metrics && metrics.total > 0
+    ? Math.round((metrics.validados / metrics.total) * 100)
+    : 0
+
+  // ── Render ───────────────────────────────────────────────────────────
+
+  return (
+    <AppShell>
+      <PageHeader
+        title="Dashboard"
+        subtitle={ehAdmin
+          ? 'Consolidação dos registros de toda a equipe'
+          : 'Consolidação dos seus registros em campo'}
+        actions={
+          <Link to="/registros/novo">
+            <Button icon={<Plus size={17} />}>Novo registro</Button>
+          </Link>
+        }
+      />
+
+      {/* Tabs — a aba de equipe só existe para a coordenação */}
+      {ehAdmin && (
+        <div className="flex gap-1 p-1 rounded-xl glass w-fit mb-8">
+          {([
+            { key: 'visao',  label: 'Visão geral',   icon: LayoutDashboard },
+            { key: 'equipe', label: 'Equipe & LGPD', icon: Users           },
+          ] as { key: Tab; label: string; icon: typeof LayoutDashboard }[]).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={[
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                tab === key
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
+              ].join(' ')}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {erro && (
+        <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl
+                        bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-sm">
+          <AlertCircle size={16} className="shrink-0" />
+          {erro}
+        </div>
+      )}
+
+      {tab === 'visao' && (
+        <div className="space-y-6 animate-fade-in">
+
+          {/* Métricas principais */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <MetricCard
+              title="Registros no total"
+              value={metrics?.total ?? 0}
+              loading={loading}
+              icon={<ClipboardList size={20} className="text-indigo-600 dark:text-indigo-400" />}
+              iconColor="bg-indigo-100 dark:bg-indigo-900/40"
+            />
+            <MetricCard
+              title="Registros hoje"
+              value={metrics?.hoje ?? 0}
+              loading={loading}
+              icon={<CalendarDays size={20} className="text-violet-600 dark:text-violet-400" />}
+              iconColor="bg-violet-100 dark:bg-violet-900/40"
+              trend={metrics ? {
+                value: variacao(metrics.hoje, metrics.ontem),
+                label: 'vs. ontem',
+              } : undefined}
+            />
+            <MetricCard
+              title="Últimos 7 dias"
+              value={metrics?.semana ?? 0}
+              loading={loading}
+              icon={<TrendingUp size={20} className="text-emerald-600 dark:text-emerald-400" />}
+              iconColor="bg-emerald-100 dark:bg-emerald-900/40"
+              trend={metrics ? {
+                value: variacao(metrics.semana, metrics.semana_anterior),
+                label: 'vs. 7 dias antes',
+              } : undefined}
+            />
+            <MetricCard
+              title="Cidades alcançadas"
+              value={metrics?.cidades ?? 0}
+              loading={loading}
+              icon={<MapPin size={20} className="text-sky-600 dark:text-sky-400" />}
+              iconColor="bg-sky-100 dark:bg-sky-900/40"
+            />
+          </div>
+
+          {/* Projeção de votos — 1 registro = 1 voto */}
+          <ProjecaoVotosCard metrics={metrics} loading={loading} />
+
+          {/* Faixa secundária — qualidade e alcance */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCompacto
+              icon={<MapPin size={16} />}
+              label="Zonas cobertas"
+              valor={(metrics?.zonas ?? 0).toLocaleString('pt-BR')}
+              loading={loading}
+            />
+            <StatCompacto
+              icon={<ClipboardList size={16} />}
+              label="Seções cobertas"
+              valor={(metrics?.secoes ?? 0).toLocaleString('pt-BR')}
+              loading={loading}
+            />
+            <StatCompacto
+              icon={<ShieldCheck size={16} />}
+              label="Localização validada"
+              valor={`${percentualValidado}%`}
+              detalhe={metrics ? `${metrics.validados} de ${metrics.total} na base do TRE-PI` : undefined}
+              loading={loading}
+            />
+            <StatCompacto
+              icon={<Copy size={16} />}
+              label="Contatos repetidos"
+              valor={(metrics?.contatos_duplicados ?? 0).toLocaleString('pt-BR')}
+              detalhe={(metrics?.contatos_duplicados ?? 0) > 0 ? 'Revisar possíveis duplicatas' : 'Nenhuma duplicata'}
+              alerta={(metrics?.contatos_duplicados ?? 0) > 0}
+              loading={loading}
+            />
+          </div>
+
+          {/* Evolução no tempo */}
+          <TimelineChart
+            data={serie}
+            dias={dias}
+            onDiasChange={setDias}
+            loading={serieLoading}
+          />
+
+          {/* Distribuições */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <VinculoChart data={vinculos} loading={loading} />
+            <CidadeChart  data={cidades}  loading={loading} />
+          </div>
+
+          {/* Listas de apoio */}
+          <div className={[
+            'grid grid-cols-1 gap-6',
+            ehAdmin ? 'lg:grid-cols-3' : 'lg:grid-cols-2',
+          ].join(' ')}>
+            <ZonaCoberturaCard data={zonas}      loading={loading} />
+            <DuplicadosCard    data={duplicados} loading={loading} />
+            {ehAdmin && <ColaboradoresCard data={colaboradores} loading={loading} />}
+          </div>
+
+          {/* Últimos registros */}
+          <RegistrosTable compact limit={8} />
+        </div>
+      )}
+
+      {tab === 'equipe' && ehAdmin && (
+        <div className="animate-fade-in">
+          <AgentesTable />
+        </div>
+      )}
+    </AppShell>
+  )
+}

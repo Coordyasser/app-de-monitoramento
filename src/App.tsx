@@ -7,10 +7,9 @@ import { HomePage }            from '@/pages/HomePage'
 import { LoginPage }           from '@/pages/LoginPage'
 import { RegisterPage }        from '@/pages/RegisterPage'
 import { SettingsPage }        from '@/pages/SettingsPage'
-import { BuscarSecaoPage }     from '@/pages/BuscarSecaoPage'
-import { OcorrenciasPage }     from '@/pages/OcorrenciasPage'
-import { NovaOcorrenciaPage }  from '@/pages/NovaOcorrenciaPage'
-import { AdminPage }           from '@/pages/AdminPage'
+import { DashboardPage }       from '@/pages/DashboardPage'
+import { RegistrosPage }       from '@/pages/RegistrosPage'
+import { NovoRegistroPage }    from '@/pages/NovoRegistroPage'
 import { AcessoRevogadoPage }  from '@/pages/AcessoRevogadoPage'
 
 export default function App() {
@@ -27,24 +26,28 @@ export default function App() {
             {/* Informativa — conta revogada */}
             <Route path="/acesso-revogado" element={<AcessoRevogadoPage />} />
 
-            {/* ── Autenticadas ──────────────────────────────────────── */}
-            <Route path="/buscar-secao" element={
-              <RequireAuth><BuscarSecaoPage /></RequireAuth>
+            {/* ── Central de registros ──────────────────────────────── */}
+            <Route path="/dashboard" element={
+              <RequireAuth><DashboardPage /></RequireAuth>
             } />
-            <Route path="/ocorrencias/nova" element={
-              <RequireAuth><NovaOcorrenciaPage /></RequireAuth>
+            <Route path="/registros" element={
+              <RequireAuth><RegistrosPage /></RequireAuth>
+            } />
+            <Route path="/registros/novo" element={
+              <RequireAuth><NovoRegistroPage /></RequireAuth>
             } />
             <Route path="/settings" element={
               <RequireAuth><SettingsPage /></RequireAuth>
             } />
-            <Route path="/ocorrencias" element={
-              <RequireAuth><OcorrenciasPage /></RequireAuth>
-            } />
 
-            {/* ── Admin only ────────────────────────────────────────── */}
-            <Route path="/admin" element={
-              <RequireAuth adminOnly><AdminPage /></RequireAuth>
-            } />
+            {/* ── Rotas do escopo antigo (ocorrências) ──────────────────
+                Saíram da navegação na virada para a central de registros.
+                As páginas seguem no repositório; para reativá-las basta
+                registrar as rotas de volta aqui.                        */}
+            <Route path="/buscar-secao"    element={<Navigate to="/registros/novo" replace />} />
+            <Route path="/ocorrencias/nova" element={<Navigate to="/registros/novo" replace />} />
+            <Route path="/ocorrencias"     element={<Navigate to="/registros" replace />} />
+            <Route path="/admin"           element={<Navigate to="/dashboard" replace />} />
 
             {/* ── Fallback ──────────────────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />

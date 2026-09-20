@@ -123,6 +123,70 @@ export type Database = {
         }
         Relationships: []
       }
+      registros: {
+        Row: {
+          cidade: string
+          contato: string
+          contato_digits: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          secao: string
+          secao_id: string | null
+          titulo: string
+          updated_at: string
+          vinculo: string
+          zona: string
+        }
+        Insert: {
+          cidade: string
+          contato: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          secao: string
+          secao_id?: string | null
+          titulo: string
+          updated_at?: string
+          vinculo: string
+          zona: string
+        }
+        Update: {
+          cidade?: string
+          contato?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          secao?: string
+          secao_id?: string | null
+          titulo?: string
+          updated_at?: string
+          vinculo?: string
+          zona?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_secao_id_fkey"
+            columns: ["secao_id"]
+            isOneToOne: false
+            referencedRelation: "secoes_eleitorais_pi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       secoes_eleitorais_pi: {
         Row: {
           id: string
@@ -184,9 +248,114 @@ export type Database = {
           },
         ]
       }
+      vw_registros_detalhados: {
+        Row: {
+          agente_nome: string | null
+          cidade: string | null
+          contato: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string | null
+          local_votacao: string | null
+          localizacao_validada: boolean | null
+          nome: string | null
+          observacoes: string | null
+          secao: string | null
+          secao_id: string | null
+          titulo: string | null
+          updated_at: string | null
+          vinculo: string | null
+          zona: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_secao_id_fkey"
+            columns: ["secao_id"]
+            isOneToOne: false
+            referencedRelation: "secoes_eleitorais_pi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_dashboard_metrics: { Args: never; Returns: Json }
+      get_registros_metrics: { Args: never; Returns: Json }
+      get_registros_por_dia: {
+        Args: { p_dias?: number }
+        Returns: {
+          dia: string
+          total: number
+        }[]
+      }
+      get_registros_por_vinculo: {
+        Args: { p_limit?: number }
+        Returns: {
+          total: number
+          vinculo: string
+        }[]
+      }
+      get_registros_por_cidade: {
+        Args: { p_limit?: number }
+        Returns: {
+          cidade: string
+          total: number
+        }[]
+      }
+      get_registros_por_zona: {
+        Args: { p_limit?: number }
+        Returns: {
+          cidade: string
+          secoes: number
+          total: number
+          zona: string
+        }[]
+      }
+      get_registros_por_colaborador: {
+        Args: { p_limit?: number }
+        Returns: {
+          colaborador: string
+          total: number
+          ultimo: string
+        }[]
+      }
+      get_registros_duplicados: {
+        Args: { p_limit?: number }
+        Returns: {
+          contato: string
+          nomes: string[]
+          repeticoes: number
+          ultimo: string
+        }[]
+      }
+      get_vinculos_sugeridos: {
+        Args: { p_limit?: number }
+        Returns: {
+          usos: number
+          vinculo: string
+        }[]
+      }
+      get_secoes_cidade_zona_pi: {
+        Args: { p_municipio: string; p_zona: string }
+        Returns: {
+          secao: string
+        }[]
+      }
+      get_secao_id_cidade_zona_pi: {
+        Args: { p_municipio: string; p_secao: string; p_zona: string }
+        Returns: {
+          id: string
+          local_votacao: string
+        }[]
+      }
+      txt_norm: { Args: { t: string }; Returns: string }
       get_locais_municipio_pi: {
         Args: { p_municipio: string }
         Returns: {
@@ -392,6 +561,26 @@ export type Ocorrencia        = Database['public']['Tables']['ocorrencias']['Row
 export type OcorrenciaInsert  = Database['public']['Tables']['ocorrencias']['Insert']
 export type OcorrenciaUpdate  = Database['public']['Tables']['ocorrencias']['Update']
 export type OcorrenciaDetalhada = Database['public']['Views']['vw_ocorrencias_detalhadas']['Row']
+
+export type Registro          = Database['public']['Tables']['registros']['Row']
+export type RegistroInsert    = Database['public']['Tables']['registros']['Insert']
+export type RegistroUpdate    = Database['public']['Tables']['registros']['Update']
+export type RegistroDetalhado = Database['public']['Views']['vw_registros_detalhados']['Row']
+
+/** Retorno da RPC `get_registros_metrics` */
+export interface RegistrosMetrics {
+  total:               number
+  hoje:                number
+  ontem:               number
+  semana:              number
+  semana_anterior:     number
+  cidades:             number
+  zonas:               number
+  secoes:              number
+  colaboradores:       number
+  validados:           number
+  contatos_duplicados: number
+}
 
 export type UserRole         = 'agent' | 'admin' | 'revoked'
 export type OcorrenciaStatus = 'pendente' | 'em_analise' | 'resolvido' | 'arquivado'

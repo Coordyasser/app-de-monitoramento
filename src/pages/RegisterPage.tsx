@@ -41,7 +41,7 @@ export function RegisterPage() {
       },
     })
     if (error) { setServerError(error.message); return }
-    navigate('/buscar-secao')
+    navigate('/dashboard')
   }
 
   return (

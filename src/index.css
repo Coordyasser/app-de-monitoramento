@@ -6,6 +6,48 @@
   :root {
     --color-bg-from: #eef2ff;
     --color-bg-to:   #e0e7ff;
+
+    /* ── Tokens de visualização de dados ───────────────────────
+       Paleta categórica validada para daltonismo e contraste nos
+       dois modos (ΔE CVD adjacente ≥ 8, normal ≥ 15).
+       Os três tons mais claros ficam abaixo de 3:1 no modo claro —
+       por isso todo gráfico categórico traz rótulo e valor
+       visíveis, nunca identifica série só pela cor.              */
+    --viz-1:      #2a78d6;
+    --viz-2:      #eb6834;
+    --viz-3:      #1baf7a;
+    --viz-4:      #eda100;
+    --viz-5:      #e87ba4;
+    --viz-6:      #008300;
+    --viz-other:  #94a3b8;
+
+    /* Série única (magnitude / tempo) — indigo da marca */
+    --viz-accent:      #4f46e5;
+    --viz-accent-soft: rgba(79, 70, 229, 0.16);
+
+    --viz-grid:        #e2e8f0;
+    --viz-axis:        #64748b;
+    --viz-surface:     rgba(255, 255, 255, 0.92);
+    --viz-surface-line: rgba(15, 23, 42, 0.08);
+  }
+
+  .dark {
+    /* Mesmas oito matizes, reescalonadas para a superfície escura */
+    --viz-1:      #3987e5;
+    --viz-2:      #d95926;
+    --viz-3:      #199e70;
+    --viz-4:      #c98500;
+    --viz-5:      #d55181;
+    --viz-6:      #008300;
+    --viz-other:  #64748b;
+
+    --viz-accent:      #818cf8;
+    --viz-accent-soft: rgba(129, 140, 248, 0.22);
+
+    --viz-grid:        rgba(255, 255, 255, 0.10);
+    --viz-axis:        #94a3b8;
+    --viz-surface:     rgba(15, 23, 42, 0.92);
+    --viz-surface-line: rgba(255, 255, 255, 0.12);
   }
 
   html {

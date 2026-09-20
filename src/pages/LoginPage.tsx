@@ -29,7 +29,7 @@ export function LoginPage() {
       password: values.password,
     })
     if (error) { setServerError(error.message); return }
-    navigate('/buscar-secao')
+    navigate('/dashboard')
   }
 
   return (

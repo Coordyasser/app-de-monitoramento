@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import {
-  ShieldCheck, MapPin, Camera, LayoutDashboard, Lock, Loader2,
+  ShieldCheck, MapPin, ClipboardList, LayoutDashboard, Lock, Loader2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -17,25 +17,25 @@ const ROTA_PRIVACIDADE     = '/privacidade'
 const ROTA_SUPORTE         = '/suporte'
 
 // Destino após autenticar (mesmo usado pela LoginPage)
-const DESTINO_POS_LOGIN = '/buscar-secao'
+const DESTINO_POS_LOGIN = '/dashboard'
 
 // ── Conteúdo do painel ─────────────────────────────────────────────────────
 
 const recursos = [
   {
-    icon:  MapPin,
-    title: 'Localização precisa',
-    desc:  'Navegação por níveis de área até o ponto exato de atuação.',
+    icon:  ClipboardList,
+    title: 'Registro padronizado',
+    desc:  'Nome, contato, título, vínculo e observações em um formulário só.',
   },
   {
-    icon:  Camera,
-    title: 'Registros com evidência',
-    desc:  'Foto, coordenadas GPS e categoria em cada envio.',
+    icon:  MapPin,
+    title: 'Localização conferida',
+    desc:  'Cidade, zona e seção validadas contra a base oficial do TRE-PI.',
   },
   {
     icon:  LayoutDashboard,
-    title: 'Painel da coordenação',
-    desc:  'Acompanhamento centralizado de todos os registros.',
+    title: 'Consolidação em tempo real',
+    desc:  'Volume, alcance territorial e qualidade dos dados em um painel.',
   },
 ]
 
@@ -135,7 +135,7 @@ export function HomePage() {
           </h1>
 
           <p className="hidden lg:block mt-5 text-[17px] leading-relaxed text-[#C4BFDD] max-w-[430px]">
-            Uma plataforma única para registrar, validar e acompanhar o trabalho da sua equipe.
+            Central única para consolidar, conferir e acompanhar os registros feitos em campo.
           </p>
 
           <ul className="hidden lg:block mt-10 border-t border-b border-white/[0.12] divide-y divide-white/[0.12]">

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Loader2, AlertCircle, ShieldOff, ShieldCheck, User } from 'lucide-react'
+import { Loader2, AlertCircle, ShieldAlert, ShieldOff, ShieldCheck, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Card, Modal, Button } from '@/components/ui'
 
@@ -12,6 +12,40 @@ interface AgentRow {
   deletion_requested_at: string | null
   created_at:           string
 }
+
+// ── Estado do consentimento ────────────────────────────────────────────────
+// `lgpd_consent = false` cobre duas situações juridicamente distintas, e a
+// diferença entre elas está em `deletion_requested_at`:
+//   • com data  → o titular pediu exclusão e retirou o consentimento
+//   • sem data  → nunca houve consentimento registrado (conta criada fora
+//                 do /register, onde o aceite é obrigatório)
+type EstadoLgpd = 'consentido' | 'retirado' | 'ausente'
+
+function estadoLgpd(agent: AgentRow): EstadoLgpd {
+  if (agent.lgpd_consent) return 'consentido'
+  return agent.deletion_requested_at ? 'retirado' : 'ausente'
+}
+
+const LGPD_UI: Record<EstadoLgpd, { label: string; cls: string; Icon: typeof ShieldCheck }> = {
+  consentido: {
+    label: 'Consentido',
+    cls:   'text-emerald-600 dark:text-emerald-400',
+    Icon:  ShieldCheck,
+  },
+  retirado: {
+    label: 'Consentimento retirado',
+    cls:   'text-rose-500 dark:text-rose-400',
+    Icon:  ShieldOff,
+  },
+  ausente: {
+    label: 'Sem registro',
+    cls:   'text-amber-600 dark:text-amber-400',
+    Icon:  ShieldAlert,
+  },
+}
+
+/** Ações disponíveis no modal de confirmação */
+type Acao = 'revogar' | 'restaurar' | 'consentimento'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -30,11 +64,8 @@ export function AgentesTable() {
   const [agents,       setAgents]       = useState<AgentRow[]>([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState<string | null>(null)
-  const [actionTarget, setActionTarget] = useState<AgentRow | null>(null)
+  const [alvo,         setAlvo]         = useState<{ agent: AgentRow; acao: Acao } | null>(null)
   const [acting,       setActing]       = useState(false)
-
-  const isRevoke  = actionTarget?.role === 'agent'
-  const isRestore = actionTarget?.role === 'revoked'
 
   const fetchAgents = useCallback(async () => {
     setLoading(true)
@@ -51,27 +82,31 @@ export function AgentesTable() {
 
   useEffect(() => { fetchAgents() }, [fetchAgents])
 
-  async function handleRoleChange() {
-    if (!actionTarget) return
+  async function confirmar() {
+    if (!alvo) return
+    const { agent, acao } = alvo
     setActing(true)
+    setError(null)
 
     // 'agent' → 'revoked' ou 'revoked' → 'agent'
     // Ambos os valores são válidos após migration 006 (CHECK atualizado)
-    const newRole = actionTarget.role === 'agent' ? 'revoked' : 'agent'
+    const patch = acao === 'consentimento'
+      ? { lgpd_consent: true }
+      : { role: agent.role === 'agent' ? 'revoked' : 'agent' }
 
     const { error: err } = await supabase
       .from('profiles')
-      .update({ role: newRole })
-      .eq('id', actionTarget.id)
+      .update(patch)
+      .eq('id', agent.id)
 
-    if (!err) {
-      setAgents(prev =>
-        prev.map(a => a.id === actionTarget.id ? { ...a, role: newRole } : a)
-      )
+    if (err) {
+      setError(err.message)
+    } else {
+      setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, ...patch } : a))
     }
 
     setActing(false)
-    setActionTarget(null)
+    setAlvo(null)
   }
 
   return (
@@ -144,15 +179,14 @@ export function AgentesTable() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {agent.lgpd_consent ? (
-                        <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-                          <ShieldCheck size={13} /> Consentido
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-xs text-rose-500 dark:text-rose-400">
-                          <ShieldOff size={13} /> Revogado
-                        </span>
-                      )}
+                      {(() => {
+                        const { label, cls, Icon } = LGPD_UI[estadoLgpd(agent)]
+                        return (
+                          <span className={`flex items-center gap-1 text-xs whitespace-nowrap ${cls}`}>
+                            <Icon size={13} className="shrink-0" /> {label}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400">
                       {agent.deletion_requested_at
@@ -164,20 +198,36 @@ export function AgentesTable() {
                       {formatDate(agent.created_at)}
                     </td>
                     <td className="px-4 py-3">
-                      {/* Admins não podem ser revogados por esta interface */}
-                      {agent.role !== 'admin' && (
-                        <button
-                          onClick={() => setActionTarget(agent)}
-                          className={[
-                            'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
-                            agent.role === 'agent'
-                              ? 'text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800 dark:hover:bg-rose-900/20'
-                              : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/20',
-                          ].join(' ')}
-                        >
-                          {agent.role === 'agent' ? 'Revogar' : 'Restaurar'}
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {/* Admins não podem ser revogados por esta interface */}
+                        {agent.role !== 'admin' && (
+                          <button
+                            onClick={() => setAlvo({ agent, acao: agent.role === 'agent' ? 'revogar' : 'restaurar' })}
+                            className={[
+                              'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all whitespace-nowrap',
+                              agent.role === 'agent'
+                                ? 'text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800 dark:hover:bg-rose-900/20'
+                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/20',
+                            ].join(' ')}
+                          >
+                            {agent.role === 'agent' ? 'Revogar' : 'Restaurar'}
+                          </button>
+                        )}
+
+                        {/* Só para quem nunca teve consentimento registrado.
+                            Quem retirou o consentimento não reaparece aqui:
+                            um novo aceite tem que partir do próprio titular. */}
+                        {estadoLgpd(agent) === 'ausente' && (
+                          <button
+                            onClick={() => setAlvo({ agent, acao: 'consentimento' })}
+                            className="px-2.5 py-1 rounded-lg text-xs font-medium border transition-all whitespace-nowrap
+                                       text-amber-700 border-amber-200 hover:bg-amber-50
+                                       dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/20"
+                          >
+                            Registrar consentimento
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -189,29 +239,51 @@ export function AgentesTable() {
 
       {/* Modal de confirmação */}
       <Modal
-        open={!!actionTarget}
-        onClose={() => !acting && setActionTarget(null)}
-        title={isRevoke ? 'Revogar credenciais' : isRestore ? 'Restaurar acesso' : ''}
+        open={!!alvo}
+        onClose={() => !acting && setAlvo(null)}
+        title={
+          alvo?.acao === 'revogar'       ? 'Revogar credenciais'
+          : alvo?.acao === 'restaurar'   ? 'Restaurar acesso'
+          : alvo?.acao === 'consentimento' ? 'Registrar consentimento LGPD'
+          : ''
+        }
         maxWidth="sm"
       >
-        {actionTarget && (
+        {alvo && (
           <>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
-              {isRevoke
-                ? <>Tem certeza que deseja revogar as credenciais de <strong>{actionTarget.full_name}</strong>? O agente perderá o acesso imediatamente.</>
-                : <>Restaurar o acesso de <strong>{actionTarget.full_name}</strong> à plataforma?</>
-              }
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              {alvo.acao === 'revogar' && (
+                <>Tem certeza que deseja revogar as credenciais de <strong>{alvo.agent.full_name}</strong>? O agente perderá o acesso imediatamente.</>
+              )}
+              {alvo.acao === 'restaurar' && (
+                <>Restaurar o acesso de <strong>{alvo.agent.full_name}</strong> à plataforma?</>
+              )}
+              {alvo.acao === 'consentimento' && (
+                <>Registrar que <strong>{alvo.agent.full_name}</strong> forneceu consentimento para o tratamento dos dados pessoais.</>
+              )}
             </p>
+
+            {alvo.acao === 'consentimento' && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6
+                            rounded-xl bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+                Use apenas quando o aceite tiver sido obtido de fato — em contas criadas
+                pela coordenação, o formulário de cadastro não passou pelo titular. Este
+                registro vale como declaração de quem administra.
+              </p>
+            )}
+
             <div className="flex gap-3 justify-end">
-              <Button variant="ghost" onClick={() => setActionTarget(null)} disabled={acting}>
+              <Button variant="ghost" onClick={() => setAlvo(null)} disabled={acting}>
                 Cancelar
               </Button>
               <Button
-                variant={isRevoke ? 'danger' : 'primary'}
+                variant={alvo.acao === 'revogar' ? 'danger' : 'primary'}
                 loading={acting}
-                onClick={handleRoleChange}
+                onClick={confirmar}
               >
-                {isRevoke ? 'Confirmar revogação' : 'Restaurar acesso'}
+                {alvo.acao === 'revogar'        ? 'Confirmar revogação'
+                 : alvo.acao === 'restaurar'    ? 'Restaurar acesso'
+                 : 'Confirmar consentimento'}
               </Button>
             </div>
           </>
