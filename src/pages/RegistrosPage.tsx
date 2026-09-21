@@ -9,17 +9,20 @@ import { RegistrosTable } from '@/components/registros/RegistrosTable'
 export function RegistrosPage() {
   const { profile } = useAuth()
   const location    = useLocation()
-  const [sucesso, setSucesso] = useState(
-    (location.state as { criado?: boolean } | null)?.criado ?? false
+  const estado      = location.state as { criado?: boolean; excluido?: boolean } | null
+
+  // A página de detalhes redireciona para cá depois de excluir
+  const [aviso, setAviso] = useState<'criado' | 'excluido' | null>(
+    estado?.criado ? 'criado' : estado?.excluido ? 'excluido' : null
   )
 
-  // O aviso de sucesso some sozinho — e não reaparece ao recarregar
+  // O aviso some sozinho — e não reaparece ao recarregar
   useEffect(() => {
-    if (!sucesso) return
+    if (!aviso) return
     window.history.replaceState({}, '')
-    const t = setTimeout(() => setSucesso(false), 5000)
+    const t = setTimeout(() => setAviso(null), 5000)
     return () => clearTimeout(t)
-  }, [sucesso])
+  }, [aviso])
 
   const ehAdmin = profile?.role === 'admin'
 
@@ -37,12 +40,12 @@ export function RegistrosPage() {
         }
       />
 
-      {sucesso && (
+      {aviso && (
         <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl
                         bg-emerald-50 dark:bg-emerald-900/20
                         text-emerald-700 dark:text-emerald-300 text-sm animate-fade-in">
           <CheckCircle2 size={16} className="shrink-0" />
-          Registro salvo com sucesso.
+          {aviso === 'criado' ? 'Registro salvo com sucesso.' : 'Registro excluído.'}
         </div>
       )}
 

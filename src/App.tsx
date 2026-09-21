@@ -10,6 +10,7 @@ import { SettingsPage }        from '@/pages/SettingsPage'
 import { DashboardPage }       from '@/pages/DashboardPage'
 import { RegistrosPage }       from '@/pages/RegistrosPage'
 import { NovoRegistroPage }    from '@/pages/NovoRegistroPage'
+import { RegistroDetalhePage } from '@/pages/RegistroDetalhePage'
 import { AcessoRevogadoPage }  from '@/pages/AcessoRevogadoPage'
 
 export default function App() {
@@ -35,6 +36,10 @@ export default function App() {
             } />
             <Route path="/registros/novo" element={
               <RequireAuth><NovoRegistroPage /></RequireAuth>
+            } />
+            {/* Depois de /novo, senão "novo" cairia no :id */}
+            <Route path="/registros/:id" element={
+              <RequireAuth><RegistroDetalhePage /></RequireAuth>
             } />
             <Route path="/settings" element={
               <RequireAuth><SettingsPage /></RequireAuth>

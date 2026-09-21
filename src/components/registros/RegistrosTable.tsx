@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  AlertCircle, ChevronLeft, ChevronRight, Download, Eye, Filter,
+  AlertCircle, ChevronLeft, ChevronRight, Download, Filter,
   Loader2, MapPin, RotateCcw, Search, ShieldCheck,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { Button, Card, ComboboxSelect, Input } from '@/components/ui'
-import { RegistroDetalheModal } from './RegistroDetalheModal'
 import type { RegistroDetalhado } from '@/types/database.types'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
@@ -31,7 +30,7 @@ interface Props {
 const PAGE_SIZE   = 12
 const EXPORT_MAX  = 5000
 
-const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada'
+const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -80,12 +79,13 @@ function baixarCSV(conteudo: string) {
 // ── Componente ─────────────────────────────────────────────────────────────
 
 export function RegistrosTable({ compact = false, limit = 8 }: Props) {
+  const navigate = useNavigate()
+
   const [linhas,   setLinhas]   = useState<RegistroDetalhado[]>([])
   const [total,    setTotal]    = useState(0)
   const [pagina,   setPagina]   = useState(0)
   const [loading,  setLoading]  = useState(true)
   const [erro,     setErro]     = useState<string | null>(null)
-  const [detalhe,  setDetalhe]  = useState<RegistroDetalhado | null>(null)
   const [exportando, setExportando] = useState(false)
 
   const [filtros,      setFiltros]      = useState<Filtros>(FILTROS_VAZIOS)
@@ -194,17 +194,6 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
     setExportando(false)
     if (error) { setErro(`Falha ao exportar: ${error.message}`); return }
     baixarCSV(paraCSV((data as RegistroDetalhado[]) ?? []))
-  }
-
-  function aoSalvar(atualizado: RegistroDetalhado) {
-    setLinhas(prev => prev.map(r => r.id === atualizado.id ? atualizado : r))
-    setDetalhe(null)
-  }
-
-  function aoExcluir(id: string) {
-    setLinhas(prev => prev.filter(r => r.id !== id))
-    setTotal(prev => Math.max(prev - 1, 0))
-    setDetalhe(null)
   }
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -334,14 +323,14 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                 <th className="px-5 py-3 font-medium hidden lg:table-cell">Vínculo</th>
                 <th className="px-5 py-3 font-medium">Localização</th>
                 <th className="px-5 py-3 font-medium hidden sm:table-cell">Data</th>
-                <th className="px-5 py-3 font-medium text-right">Ver</th>
+                <th className="px-5 py-3 font-medium text-right sr-only">Abrir</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/40 dark:divide-white/[0.06]">
               {linhas.map(r => (
                 <tr
                   key={r.id}
-                  onClick={() => setDetalhe(r)}
+                  onClick={() => navigate(`/registros/${r.id}`)}
                   className="cursor-pointer transition-colors
                              hover:bg-white/50 dark:hover:bg-white/[0.06]"
                 >
@@ -377,7 +366,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                     {formatarData(r.created_at)}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <Eye size={15} className="inline text-slate-400" />
+                    <ChevronRight size={16} className="inline text-slate-300 dark:text-slate-600" />
                   </td>
                 </tr>
               ))}
@@ -413,12 +402,6 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
         </div>
       )}
 
-      <RegistroDetalheModal
-        registro={detalhe}
-        onClose={() => setDetalhe(null)}
-        onSalvar={aoSalvar}
-        onExcluir={aoExcluir}
-      />
     </Card>
   )
 }

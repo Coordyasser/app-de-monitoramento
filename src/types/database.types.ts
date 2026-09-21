@@ -133,8 +133,10 @@ export type Database = {
           id: string
           nome: string
           observacoes: string | null
+          origem_id: string | null
           secao: string
           secao_id: string | null
+          situacao: string | null
           titulo: string
           updated_at: string
           vinculo: string
@@ -148,8 +150,10 @@ export type Database = {
           id?: string
           nome: string
           observacoes?: string | null
+          origem_id?: string | null
           secao: string
           secao_id?: string | null
+          situacao?: string | null
           titulo: string
           updated_at?: string
           vinculo: string
@@ -163,8 +167,10 @@ export type Database = {
           id?: string
           nome?: string
           observacoes?: string | null
+          origem_id?: string | null
           secao?: string
           secao_id?: string | null
+          situacao?: string | null
           titulo?: string
           updated_at?: string
           vinculo?: string
@@ -260,8 +266,10 @@ export type Database = {
           localizacao_validada: boolean | null
           nome: string | null
           observacoes: string | null
+          origem_id: string | null
           secao: string | null
           secao_id: string | null
+          situacao: string | null
           titulo: string | null
           updated_at: string | null
           vinculo: string | null
