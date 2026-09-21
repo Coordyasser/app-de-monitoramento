@@ -14,6 +14,7 @@ import {
   type LocalizacaoErrors, type LocalizacaoRegistro,
 } from '@/components/registros/LocalizacaoFields'
 import { conferirTitulo, formatarTitulo } from '@/lib/titulo'
+import { capitalizarLugar } from '@/lib/texto'
 import type { RegistroDetalhado } from '@/types/database.types'
 
 // String literal única: o select() do Supabase infere o tipo do retorno a
@@ -409,11 +410,11 @@ export function RegistroDetalhePage() {
             <LocalizacaoFields value={localizacao} onChange={setLocalizacao} errors={locErros} />
           ) : (
             <Campo icon={<MapPin size={15} />} label="Seção eleitoral">
-              {registro.cidade} · Zona {registro.zona} · Seção {registro.secao}
+              {capitalizarLugar(registro.cidade)} · Zona {registro.zona} · Seção {registro.secao}
               {/* Bairro e local só existem quando a seção veio da base oficial */}
               {registro.bairro && (
                 <span className="block text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                  Bairro {registro.bairro}
+                  Bairro {capitalizarLugar(registro.bairro)}
                 </span>
               )}
               {registro.local_votacao && (

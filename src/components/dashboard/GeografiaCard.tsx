@@ -4,6 +4,7 @@ import {
 } from 'recharts'
 import { Building2, Info, MapPinned } from 'lucide-react'
 import { Card } from '@/components/ui'
+import { capitalizarLugar } from '@/lib/texto'
 import { ACCENT, AXIS, formatarNumero, tooltipStyle } from './viz'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
@@ -52,6 +53,8 @@ const FONTE_EIXO   = { fontSize: 10, fill: AXIS }
 export function GeografiaCard({
   capital, bairros, municipios, cobertura, coberturaBairro, loading = false,
 }: Props) {
+  // Nome da capital como aparece na tela, em todas as frases do cartão
+  const capitalExibida = capitalizarLugar(capital)
   const [aba, setAba] = useState<Aba>('capital')
 
   // Se a capital não tiver nada, abre direto no interior — não faz sentido
@@ -64,8 +67,8 @@ export function GeografiaCard({
 
   const dados = useMemo(() => {
     const bruto = aba === 'capital'
-      ? bairros.map(b => ({ nome: b.bairro, total: b.total, detalhe: `${b.secoes} ${b.secoes === 1 ? 'seção' : 'seções'}` }))
-      : municipios.map(m => ({ nome: m.municipio, total: m.total, detalhe: `${m.secoes} ${m.secoes === 1 ? 'seção' : 'seções'}` }))
+      ? bairros.map(b => ({ nome: capitalizarLugar(b.bairro), total: b.total, detalhe: `${b.secoes} ${b.secoes === 1 ? 'seção' : 'seções'}` }))
+      : municipios.map(m => ({ nome: capitalizarLugar(m.municipio), total: m.total, detalhe: `${m.secoes} ${m.secoes === 1 ? 'seção' : 'seções'}` }))
 
     return bruto.map(d => ({
       ...d,
@@ -91,7 +94,7 @@ export function GeografiaCard({
     : 0
 
   const abas: { key: Aba; label: string; icone: typeof Building2; contagem: number }[] = [
-    { key: 'capital',  label: capital,   icone: Building2,  contagem: cobertura?.capital  ?? 0 },
+    { key: 'capital',  label: capitalExibida,   icone: Building2,  contagem: cobertura?.capital  ?? 0 },
     { key: 'interior', label: 'Interior', icone: MapPinned, contagem: cobertura?.interior ?? 0 },
   ]
 
@@ -104,7 +107,7 @@ export function GeografiaCard({
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {aba === 'capital'
-              ? `Registros por bairro em ${capital}`
+              ? `Registros por bairro em ${capitalExibida}`
               : 'Registros por município, fora da capital'}
           </p>
         </div>
@@ -143,7 +146,7 @@ export function GeografiaCard({
           <MapPinned size={26} className="text-slate-300 dark:text-slate-600" />
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {aba === 'capital'
-              ? `Nenhum registro de ${capital} com seção vinculada à base do TRE-PI.`
+              ? `Nenhum registro de ${capitalExibida} com seção vinculada à base do TRE-PI.`
               : 'Nenhum registro fora da capital ainda.'}
           </p>
         </div>
@@ -199,12 +202,12 @@ export function GeografiaCard({
             {foraDaLista > 0 && (
               aba === 'capital'
                 ? `Mais ${formatarNumero(foraDaLista)} registros ${bairrosOcultos > 0
-                    ? `nos outros ${formatarNumero(bairrosOcultos)} bairros de ${capital}`
+                    ? `nos outros ${formatarNumero(bairrosOcultos)} bairros de ${capitalExibida}`
                     : `em bairros fora desta lista`}. `
                 : `Mais ${formatarNumero(foraDaLista)} registros em municípios fora desta lista. `
             )}
             {semBairro > 0 && (
-              `${formatarNumero(semBairro)} de ${capital} não têm seção vinculada à base oficial, então ficam sem bairro. `
+              `${formatarNumero(semBairro)} de ${capitalExibida} não têm seção vinculada à base oficial, então ficam sem bairro. `
             )}
             {cobertura.sem_localizacao > 0 && (
               <>

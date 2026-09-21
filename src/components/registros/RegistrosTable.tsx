@@ -6,6 +6,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { Button, Card, ComboboxSelect, Input } from '@/components/ui'
+import { capitalizarLugar } from '@/lib/texto'
 import type { RegistroDetalhado } from '@/types/database.types'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ function paraCSV(linhas: RegistroDetalhado[]): string {
     return `"${texto.replace(/"/g, '""')}"`
   }
   const corpo = linhas.map(r => [
-    r.nome, r.contato, r.titulo, r.vinculo, r.cidade, r.zona, r.secao,
+    r.nome, r.contato, r.titulo, r.vinculo, capitalizarLugar(r.cidade), r.zona, r.secao,
     r.local_votacao ?? '', r.localizacao_validada ? 'Sim' : 'Não',
     r.observacoes ?? '', r.agente_nome ?? '', formatarData(r.created_at),
   ].map(escapar).join(';'))
@@ -260,7 +261,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
               onChange={e => setBuscaInput(e.target.value)}
             />
             <ComboboxSelect
-              options={cidadeOpts.map(c => ({ value: c, label: c }))}
+              options={cidadeOpts.map(c => ({ value: c, label: capitalizarLugar(c) }))}
               value={filtros.cidade}
               onChange={v => aplicar({ cidade: v })}
               placeholder="Todas as cidades"
@@ -358,7 +359,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                         <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
                       )}
                       <span className="truncate max-w-[160px]">
-                        {r.cidade} · Z{r.zona} · S{r.secao}
+                        {capitalizarLugar(r.cidade)} · Z{r.zona} · S{r.secao}
                       </span>
                     </span>
                   </td>

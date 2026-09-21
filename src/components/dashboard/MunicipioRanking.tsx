@@ -1,6 +1,7 @@
 import { MapPin, ShieldCheck } from 'lucide-react'
 import { formatarNumero } from './viz'
 import { RankingBarras } from './RankingBarras'
+import { capitalizarLugar } from '@/lib/texto'
 import type { CoberturaGeografica, Municipio } from './GeografiaCard'
 
 interface Props {
@@ -19,7 +20,7 @@ export function MunicipioRanking({ data, cobertura, capital, loading = false }: 
     const validado = m.total > 0 ? Math.round((m.validados / m.total) * 100) : 0
     return {
       chave:    m.municipio,
-      rotulo:   m.municipio,
+      rotulo:   capitalizarLugar(m.municipio),
       total:    m.total,
       detalhe:  `${formatarNumero(m.secoes)} ${m.secoes === 1 ? 'seção' : 'seções'}`,
       destaque: m.municipio.toUpperCase() === capital.toUpperCase(),

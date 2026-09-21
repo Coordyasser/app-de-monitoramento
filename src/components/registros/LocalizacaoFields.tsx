@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Keyboard, ListChecks, MapPin, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { ComboboxSelect, Input } from '@/components/ui'
+import { capitalizarLugar } from '@/lib/texto'
 
 // ── Tipo ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,11 @@ interface Props {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const toOptions = (values: string[]) => values.map(v => ({ value: v, label: v }))
+
+// O value tem de continuar sendo o texto do banco — é ele que volta nas RPCs
+// da cascata. Só o rótulo é capitalizado.
+const toOptionsLugar = (values: string[]) =>
+  values.map(v => ({ value: v, label: capitalizarLugar(v) }))
 
 // ── Componente ─────────────────────────────────────────────────────────────
 
@@ -181,7 +187,7 @@ export function LocalizacaoFields({ value, onChange, errors = {} }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <ComboboxSelect
             label="Cidade"
-            options={toOptions(cidades)}
+            options={toOptionsLugar(cidades)}
             value={cidade}
             onChange={setCidade}
             loading={cidadesLoading}

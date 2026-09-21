@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { Card } from '@/components/ui'
 import { formatarNumero } from './viz'
+import { capitalizarLugar } from '@/lib/texto'
 
 // ── Casca comum das três listas do dashboard ───────────────────────────────
 
@@ -73,7 +74,7 @@ export function ZonaCoberturaCard({ data, loading }: { data: ZonaCobertura[]; lo
             <tr key={`${z.cidade}-${z.zona}`}>
               <td className="py-2 pr-2">
                 <span className="block truncate max-w-[180px] text-slate-700 dark:text-slate-200">
-                  {z.cidade}
+                  {capitalizarLugar(z.cidade)}
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500">Zona {z.zona}</span>
               </td>
