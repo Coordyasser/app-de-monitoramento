@@ -12,14 +12,14 @@ import { MetricCard }   from '@/components/admin/MetricCard'
 import { AgentesTable } from '@/components/admin/AgentesTable'
 import { TimelineChart } from '@/components/dashboard/TimelineChart'
 import { VinculoChart }  from '@/components/dashboard/VinculoChart'
-import { CidadeChart }   from '@/components/dashboard/CidadeChart'
 import {
   GeografiaCard,
   type Bairro, type CoberturaGeografica, type Municipio,
 } from '@/components/dashboard/GeografiaCard'
+import { MunicipioRanking } from '@/components/dashboard/MunicipioRanking'
 import {
-  ColaboradoresCard, DuplicadosCard, ZonaCoberturaCard,
-  type Colaborador, type Duplicado, type ZonaCobertura,
+  DuplicadosCard, ZonaCoberturaCard,
+  type Duplicado, type ZonaCobertura,
 } from '@/components/dashboard/ListasDashboard'
 import { RegistrosTable } from '@/components/registros/RegistrosTable'
 import type { RegistrosMetrics } from '@/types/database.types'
@@ -79,11 +79,10 @@ export function DashboardPage() {
   const [metrics, setMetrics] = useState<RegistrosMetrics | null>(null)
   const [serie,   setSerie]   = useState<{ dia: string; total: number }[]>([])
   const [vinculos,      setVinculos]      = useState<{ vinculo: string; total: number }[]>([])
-  const [cidades,       setCidades]       = useState<{ cidade: string; total: number }[]>([])
   const [zonas,         setZonas]         = useState<ZonaCobertura[]>([])
   const [duplicados,    setDuplicados]    = useState<Duplicado[]>([])
-  const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [bairros,       setBairros]       = useState<Bairro[]>([])
+  const [interior,      setInterior]      = useState<Municipio[]>([])
   const [municipios,    setMunicipios]    = useState<Municipio[]>([])
   const [cobertura,     setCobertura]     = useState<CoberturaGeografica | null>(null)
 
@@ -98,29 +97,30 @@ export function DashboardPage() {
     setLoading(true)
     setErro(null)
 
-    const [m, v, c, z, d, col, b, mun, cob] = await Promise.all([
+    const [m, v, z, d, b, int, mun, cob] = await Promise.all([
       supabase.rpc('get_registros_metrics'),
-      supabase.rpc('get_registros_por_vinculo',     { p_limit: 12 }),
-      supabase.rpc('get_registros_por_cidade',      { p_limit: 10 }),
-      supabase.rpc('get_registros_por_zona',        { p_limit: 8  }),
-      supabase.rpc('get_registros_duplicados',      { p_limit: 8  }),
-      supabase.rpc('get_registros_por_colaborador', { p_limit: 8  }),
-      supabase.rpc('get_registros_por_bairro',      { p_municipio: CAPITAL, p_limit: 15 }),
-      // A capital sai da lista de municípios: ela tem aba própria, por bairro
-      supabase.rpc('get_registros_por_municipio',   { p_limit: 15, p_excluir: CAPITAL }),
-      supabase.rpc('get_cobertura_geografica',      { p_capital: CAPITAL }),
+      supabase.rpc('get_registros_por_vinculo',   { p_limit: 12 }),
+      supabase.rpc('get_registros_por_zona',      { p_limit: 8  }),
+      supabase.rpc('get_registros_duplicados',    { p_limit: 8  }),
+      supabase.rpc('get_registros_por_bairro',    { p_municipio: CAPITAL, p_limit: 15 }),
+      // A capital sai da aba de interior: ela tem aba própria, por bairro
+      supabase.rpc('get_registros_por_municipio', { p_limit: 15, p_excluir: CAPITAL }),
+      // O ranking geral inclui a capital. O limite cobre folgadamente os
+      // municípios alcançados hoje, senão o total do cabeçalho não fecha
+      // com a soma da lista.
+      supabase.rpc('get_registros_por_municipio', { p_limit: 40 }),
+      supabase.rpc('get_cobertura_geografica',    { p_capital: CAPITAL }),
     ])
 
-    const falha = [m, v, c, z, d, col, b, mun, cob].find(r => r.error)
+    const falha = [m, v, z, d, b, int, mun, cob].find(r => r.error)
     if (falha?.error) setErro(falha.error.message)
 
     if (m.data)   setMetrics(m.data as unknown as RegistrosMetrics)
     if (v.data)   setVinculos(v.data)
-    if (c.data)   setCidades(c.data)
     if (z.data)   setZonas(z.data)
     if (d.data)   setDuplicados(d.data as Duplicado[])
-    if (col.data) setColaboradores(col.data as Colaborador[])
     if (b.data)   setBairros(b.data as Bairro[])
+    if (int.data) setInterior(int.data as Municipio[])
     if (mun.data) setMunicipios(mun.data as Municipio[])
     if (cob.data) setCobertura(cob.data as unknown as CoberturaGeografica)
 
@@ -243,15 +243,6 @@ export function DashboardPage() {
             />
           </div>
 
-          {/* Onde os registros estão: bairro na capital, município no interior */}
-          <GeografiaCard
-            capital={CAPITAL}
-            bairros={bairros}
-            municipios={municipios}
-            cobertura={cobertura}
-            loading={loading}
-          />
-
           {/* Faixa secundária — qualidade e alcance */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCompacto
@@ -283,6 +274,24 @@ export function DashboardPage() {
             />
           </div>
 
+          {/* ── Bloco geográfico ────────────────────────────────────
+              Do recorte fino para o amplo: primeiro onde a base está
+              dentro da capital, depois o ranking entre municípios. */}
+          <GeografiaCard
+            capital={CAPITAL}
+            bairros={bairros}
+            municipios={interior}
+            cobertura={cobertura}
+            loading={loading}
+          />
+
+          <MunicipioRanking
+            data={municipios}
+            cobertura={cobertura}
+            capital={CAPITAL}
+            loading={loading}
+          />
+
           {/* Evolução no tempo */}
           <TimelineChart
             data={serie}
@@ -291,20 +300,11 @@ export function DashboardPage() {
             loading={serieLoading}
           />
 
-          {/* Distribuições */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <VinculoChart data={vinculos} loading={loading} />
-            <CidadeChart  data={cidades}  loading={loading} />
-          </div>
-
-          {/* Listas de apoio */}
-          <div className={[
-            'grid grid-cols-1 gap-6',
-            ehAdmin ? 'lg:grid-cols-3' : 'lg:grid-cols-2',
-          ].join(' ')}>
+          {/* Distribuições e listas de apoio */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <VinculoChart      data={vinculos}   loading={loading} />
             <ZonaCoberturaCard data={zonas}      loading={loading} />
             <DuplicadosCard    data={duplicados} loading={loading} />
-            {ehAdmin && <ColaboradoresCard data={colaboradores} loading={loading} />}
           </div>
 
           {/* Últimos registros */}
