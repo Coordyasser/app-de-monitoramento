@@ -45,3 +45,8 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Relatórios da sincronização da lista nominal — contêm nome, título de
+# eleitor e telefone de pessoas reais (LGPD). Gerados a cada execução;
+# o repositório é público, então nunca devem ser versionados.
+scripts/*.csv
