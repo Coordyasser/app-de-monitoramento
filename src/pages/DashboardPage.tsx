@@ -11,10 +11,10 @@ import { Button, Card, PageHeader } from '@/components/ui'
 import { MetricCard }   from '@/components/admin/MetricCard'
 import { AgentesTable } from '@/components/admin/AgentesTable'
 import { TimelineChart } from '@/components/dashboard/TimelineChart'
-import { VinculoChart }  from '@/components/dashboard/VinculoChart'
+import { VinculoRanking, type Vinculo } from '@/components/dashboard/VinculoRanking'
 import {
   GeografiaCard,
-  type Bairro, type CoberturaGeografica, type Municipio,
+  type Bairro, type CoberturaBairro, type CoberturaGeografica, type Municipio,
 } from '@/components/dashboard/GeografiaCard'
 import { MunicipioRanking } from '@/components/dashboard/MunicipioRanking'
 import {
@@ -78,13 +78,14 @@ export function DashboardPage() {
 
   const [metrics, setMetrics] = useState<RegistrosMetrics | null>(null)
   const [serie,   setSerie]   = useState<{ dia: string; total: number }[]>([])
-  const [vinculos,      setVinculos]      = useState<{ vinculo: string; total: number }[]>([])
+  const [vinculos,      setVinculos]      = useState<Vinculo[]>([])
   const [zonas,         setZonas]         = useState<ZonaCobertura[]>([])
   const [duplicados,    setDuplicados]    = useState<Duplicado[]>([])
   const [bairros,       setBairros]       = useState<Bairro[]>([])
   const [interior,      setInterior]      = useState<Municipio[]>([])
   const [municipios,    setMunicipios]    = useState<Municipio[]>([])
   const [cobertura,     setCobertura]     = useState<CoberturaGeografica | null>(null)
+  const [cobBairro,     setCobBairro]     = useState<CoberturaBairro | null>(null)
 
   const [dias,        setDias]        = useState(30)
   const [loading,     setLoading]     = useState(true)
@@ -97,22 +98,28 @@ export function DashboardPage() {
     setLoading(true)
     setErro(null)
 
-    const [m, v, z, d, b, int, mun, cob] = await Promise.all([
+    const [m, v, z, d, b, int, mun, cob, cb] = await Promise.all([
       supabase.rpc('get_registros_metrics'),
-      supabase.rpc('get_registros_por_vinculo',   { p_limit: 12 }),
+      // Todos os vínculos: o gráfico existe para dar a dimensão do conjunto,
+      // e cortar na 12ª liderança escondia dois terços da lista.
+      supabase.rpc('get_registros_por_vinculo',   { p_limit: 200 }),
       supabase.rpc('get_registros_por_zona',      { p_limit: 8  }),
       supabase.rpc('get_registros_duplicados',    { p_limit: 8  }),
-      supabase.rpc('get_registros_por_bairro',    { p_municipio: CAPITAL, p_limit: 15 }),
-      // A capital sai da aba de interior: ela tem aba própria, por bairro
-      supabase.rpc('get_registros_por_municipio', { p_limit: 15, p_excluir: CAPITAL }),
-      // O ranking geral inclui a capital. O limite cobre folgadamente os
-      // municípios alcançados hoje, senão o total do cabeçalho não fecha
-      // com a soma da lista.
-      supabase.rpc('get_registros_por_municipio', { p_limit: 40 }),
+      // 70 bairros da capital têm registro. Mostrar todos deixaria o cartão
+      // com quase dois mil pixels de altura; 25 cobre a maior parte e o
+      // rodapé declara o resto.
+      supabase.rpc('get_registros_por_bairro',    { p_municipio: CAPITAL, p_limit: 25 }),
+      // A capital sai da aba de interior: ela tem aba própria, por bairro.
+      // O limite cobre todos os municípios alcançados, senão a nota de rodapé
+      // precisa explicar um resto que não deveria existir.
+      supabase.rpc('get_registros_por_municipio', { p_limit: 60, p_excluir: CAPITAL }),
+      // O ranking geral inclui a capital.
+      supabase.rpc('get_registros_por_municipio', { p_limit: 60 }),
       supabase.rpc('get_cobertura_geografica',    { p_capital: CAPITAL }),
+      supabase.rpc('get_cobertura_bairro',        { p_municipio: CAPITAL }),
     ])
 
-    const falha = [m, v, z, d, b, int, mun, cob].find(r => r.error)
+    const falha = [m, v, z, d, b, int, mun, cob, cb].find(r => r.error)
     if (falha?.error) setErro(falha.error.message)
 
     if (m.data)   setMetrics(m.data as unknown as RegistrosMetrics)
@@ -123,6 +130,8 @@ export function DashboardPage() {
     if (int.data) setInterior(int.data as Municipio[])
     if (mun.data) setMunicipios(mun.data as Municipio[])
     if (cob.data) setCobertura(cob.data as unknown as CoberturaGeografica)
+    // RETURNS TABLE devolve array; aqui é sempre uma linha só
+    if (cb.data)  setCobBairro((cb.data as CoberturaBairro[])[0] ?? null)
 
     setLoading(false)
   }, [])
@@ -282,6 +291,7 @@ export function DashboardPage() {
             bairros={bairros}
             municipios={interior}
             cobertura={cobertura}
+            coberturaBairro={cobBairro}
             loading={loading}
           />
 
@@ -300,9 +310,12 @@ export function DashboardPage() {
             loading={serieLoading}
           />
 
-          {/* Distribuições e listas de apoio */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <VinculoChart      data={vinculos}   loading={loading} />
+          {/* Vínculos ocupam a largura inteira: são 38 lideranças e a leitura
+              depende de compará-las entre si, não de espremê-las numa coluna */}
+          <VinculoRanking data={vinculos} loading={loading} />
+
+          {/* Listas de apoio */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ZonaCoberturaCard data={zonas}      loading={loading} />
             <DuplicadosCard    data={duplicados} loading={loading} />
           </div>

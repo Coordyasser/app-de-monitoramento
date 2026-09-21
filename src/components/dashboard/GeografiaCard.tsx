@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import { Building2, Info, MapPinned } from 'lucide-react'
 import { Card } from '@/components/ui'
-import { ACCENT, AXIS, formatarNumero, tickStyle, tooltipStyle } from './viz'
+import { ACCENT, AXIS, formatarNumero, tooltipStyle } from './viz'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -20,22 +20,37 @@ export interface CoberturaGeografica {
   municipios_interior: number
 }
 
+/** Quantos registros da capital alcançam o nível de bairro, e em quantos bairros */
+export interface CoberturaBairro {
+  total:      number
+  com_bairro: number
+  bairros:    number
+}
+
 interface Props {
-  capital:    string
-  bairros:    Bairro[]
-  municipios: Municipio[]
-  cobertura:  CoberturaGeografica | null
-  loading?:   boolean
+  capital:         string
+  bairros:         Bairro[]
+  municipios:      Municipio[]
+  cobertura:       CoberturaGeografica | null
+  coberturaBairro: CoberturaBairro | null
+  loading?:        boolean
 }
 
 type Aba = 'capital' | 'interior'
 
-const MAX_ROTULO = 18
+/**
+ * Nomes de município do Piauí chegam a 26 caracteres ("NOSSA SENHORA DOS
+ * REMÉDIOS"). Com a fonte menor eles cabem inteiros na faixa do eixo, sem
+ * reticências e sem a quebra de linha que desalinhava as barras.
+ */
+const MAX_ROTULO   = 28
+const LARGURA_EIXO = 164
+const FONTE_EIXO   = { fontSize: 10, fill: AXIS }
 
 // ── Componente ─────────────────────────────────────────────────────────────
 
 export function GeografiaCard({
-  capital, bairros, municipios, cobertura, loading = false,
+  capital, bairros, municipios, cobertura, coberturaBairro, loading = false,
 }: Props) {
   const [aba, setAba] = useState<Aba>('capital')
 
@@ -58,12 +73,22 @@ export function GeografiaCard({
     }))
   }, [aba, bairros, municipios])
 
-  const altura = Math.max(240, dados.length * 28)
+  // 26px por barra: com 21 municípios o cartão cresce sem apertar as faixas
+  const altura = Math.max(240, dados.length * 26)
 
-  // Quantos registros da aba atual ficaram de fora do gráfico
+  // O que a aba atual não está mostrando. São duas causas distintas e elas
+  // não podem ser somadas numa frase só: registro que está num bairro fora do
+  // topo da lista é diferente de registro que não tem bairro nenhum.
   const somaVisivel = dados.reduce((s, d) => s + d.total, 0)
   const totalDaAba  = aba === 'capital' ? (cobertura?.capital ?? 0) : (cobertura?.interior ?? 0)
-  const foraDoGrafico = Math.max(totalDaAba - somaVisivel, 0)
+
+  const semBairro     = aba === 'capital' && coberturaBairro
+    ? Math.max(coberturaBairro.total - coberturaBairro.com_bairro, 0)
+    : 0
+  const foraDaLista   = Math.max(totalDaAba - somaVisivel - semBairro, 0)
+  const bairrosOcultos = aba === 'capital' && coberturaBairro
+    ? Math.max(coberturaBairro.bairros - dados.length, 0)
+    : 0
 
   const abas: { key: Aba; label: string; icone: typeof Building2; contagem: number }[] = [
     { key: 'capital',  label: capital,   icone: Building2,  contagem: cobertura?.capital  ?? 0 },
@@ -134,10 +159,11 @@ export function GeografiaCard({
             <YAxis
               type="category"
               dataKey="rotulo"
-              width={132}
-              tick={tickStyle}
+              width={LARGURA_EIXO}
+              tick={FONTE_EIXO}
               tickLine={false}
               axisLine={false}
+              interval={0}
             />
             <Tooltip
               contentStyle={tooltipStyle}
@@ -170,12 +196,15 @@ export function GeografiaCard({
                         text-slate-400 dark:text-slate-500">
           <Info size={12} className="mt-0.5 shrink-0" />
           <p>
-            {foraDoGrafico > 0 && (
-              <>
-                {aba === 'capital'
-                  ? `${formatarNumero(foraDoGrafico)} de ${capital} sem seção vinculada à base oficial — sem bairro conhecido. `
-                  : `${formatarNumero(foraDoGrafico)} fora dos municípios listados. `}
-              </>
+            {foraDaLista > 0 && (
+              aba === 'capital'
+                ? `Mais ${formatarNumero(foraDaLista)} registros ${bairrosOcultos > 0
+                    ? `nos outros ${formatarNumero(bairrosOcultos)} bairros de ${capital}`
+                    : `em bairros fora desta lista`}. `
+                : `Mais ${formatarNumero(foraDaLista)} registros em municípios fora desta lista. `
+            )}
+            {semBairro > 0 && (
+              `${formatarNumero(semBairro)} de ${capital} não têm seção vinculada à base oficial, então ficam sem bairro. `
             )}
             {cobertura.sem_localizacao > 0 && (
               <>
