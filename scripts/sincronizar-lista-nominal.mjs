@@ -272,6 +272,7 @@ const indexar = (linhas, chaveDe) => {
 };
 const porTitulo = indexar(existentes.filter(temTitulo), r => r.titulo);
 const porNomeVinculo = indexar(existentes, chaveNV);
+const porOrigemId = indexar(existentes, r => r.origem_id);
 
 const usados = new Set();
 const casar = (novo) => {
@@ -286,8 +287,20 @@ const casar = (novo) => {
       return exato.length === 1 ? exato[0] : null;
     }
   }
-  const c = porNomeVinculo.get(chaveNV(novo))?.filter(r => !usados.has(r.id)) ?? [];
-  return c.length === 1 ? c[0] : null;
+  const porNV = porNomeVinculo.get(chaveNV(novo))?.filter(r => !usados.has(r.id)) ?? [];
+  if (porNV.length === 1) return porNV[0];
+
+  // Terceira passada. Quem não tem título e teve o vínculo corrigido não casa
+  // por nenhuma das duas anteriores: seria inserido de novo, duplicando a
+  // pessoa, e a linha antiga viraria órfã. O origem_id resolve, mas sozinho
+  // ele é perigoso — quando a planilha renumera, o mesmo ID passa a apontar
+  // para outra pessoa. Só aceitamos o par quando o nome também confere, que é
+  // o que distingue "mudou de vínculo" de "a linha inteira andou".
+  const porId = porOrigemId.get(novo.origem_id)?.filter(r => !usados.has(r.id)) ?? [];
+  if (porId.length === 1 && chaveNome(porId[0].nome) === chaveNome(novo.nome)) {
+    return porId[0];
+  }
+  return null;
 };
 
 // A planilha manda nos valores reais, mas não rebaixa um dado já preenchido

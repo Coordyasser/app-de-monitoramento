@@ -31,11 +31,24 @@ deslocaram 533 pessoas em uma posição cada, e o `ID063` passou a apontar para
 outra pessoa. Sincronizar por ele teria sobrescrito 533 cadastros com dados de
 terceiros, em silêncio.
 
-A reconciliação é pela identidade da pessoa, em duas passadas:
+A reconciliação é pela identidade da pessoa, em três passadas:
 
 1. **Título de eleitor** — identificador nacional único, acompanha a pessoa e
    não a linha. Cobre a grande maioria dos registros.
 2. **Nome + vínculo** — para quem ainda não tem título.
+3. **`origem_id`, e só quando o nome confirma** — rede de segurança para quem
+   não tem título e teve o vínculo corrigido na planilha. Sem ela, a chave da
+   passada 2 muda junto com o vínculo, a pessoa é inserida de novo e a linha
+   antiga fica órfã: duas cópias da mesma pessoa. Já aconteceu.
+
+> A condição do nome na passada 3 é o que a torna segura. Sem ela seria o
+> mesmo que usar o `origem_id` como chave — exatamente o que deslocou 533
+> pessoas quando a planilha renumerou. Quando a linha anda, o ID aponta para
+> outra pessoa e o nome não bate, então o par é recusado.
+
+Quem não tem título e teve nome **e** vínculo alterados ao mesmo tempo não
+casa por nenhuma das três. É ambíguo de verdade, e o script reporta em vez de
+adivinhar.
 
 Título repetido por pessoas diferentes é desempatado pelo nome dentro do
 próprio grupo, nunca procurando no resto da base.
