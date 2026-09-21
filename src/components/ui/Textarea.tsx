@@ -39,7 +39,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           className={[
             'w-full rounded-xl px-4 py-3 text-sm resize-none',
             'bg-white/50 dark:bg-white/5',
-            'border border-white/60 dark:border-white/10',
+            // Borda perceptível: a antiga era branca sobre fundo claro e o campo
+              // não tinha contorno nenhum. A sombra dá o relevo sem endurecer.
+              'border border-slate-300/80 dark:border-white/15',
+              'shadow-sm shadow-slate-900/[0.03] dark:shadow-none',
             'backdrop-blur-sm',
             'placeholder:text-slate-400 dark:placeholder:text-slate-500',
             'text-slate-900 dark:text-slate-100',

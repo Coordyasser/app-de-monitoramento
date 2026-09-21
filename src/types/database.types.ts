@@ -257,6 +257,7 @@ export type Database = {
       vw_registros_detalhados: {
         Row: {
           agente_nome: string | null
+          bairro: string | null
           cidade: string | null
           contato: string | null
           created_at: string | null
@@ -324,6 +325,35 @@ export type Database = {
           secoes: number
           total: number
           zona: string
+        }[]
+      }
+      get_registros_por_municipio: {
+        Args: { p_limit?: number; p_excluir?: string }
+        Returns: {
+          municipio: string
+          total: number
+          secoes: number
+          validados: number
+        }[]
+      }
+      get_registros_por_bairro: {
+        Args: { p_municipio: string; p_limit?: number }
+        Returns: {
+          bairro: string
+          total: number
+          secoes: number
+        }[]
+      }
+      get_cobertura_geografica: {
+        Args: { p_capital?: string }
+        Returns: Json
+      }
+      get_cobertura_bairro: {
+        Args: { p_municipio: string }
+        Returns: {
+          total: number
+          com_bairro: number
+          bairros: number
         }[]
       }
       get_registros_por_colaborador: {

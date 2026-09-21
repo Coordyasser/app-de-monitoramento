@@ -248,7 +248,9 @@ export function ComboboxSelect({
             ? 'opacity-50 cursor-not-allowed border-slate-200/60 dark:border-white/10'
             : open
               ? 'border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-200/40 dark:ring-indigo-500/20'
-              : 'border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20',
+              // Mesmo contorno dos demais campos, para o formulário não ficar
+              // com uns com borda e outros sem.
+              : 'border-slate-300/80 dark:border-white/15 shadow-sm shadow-slate-900/[0.03] dark:shadow-none hover:border-slate-400/80 dark:hover:border-white/25',
           error ? 'border-rose-400 dark:border-rose-500' : '',
         ].join(' ')}
       >

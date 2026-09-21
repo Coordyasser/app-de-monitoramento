@@ -24,10 +24,10 @@ export function CidadeChart({ data, loading = false }: Props) {
     <Card padding="md" className="flex flex-col gap-4">
       <div>
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-          Votos por cidade
+          Registros por cidade
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Votos confirmados — um por registro consolidado
+          Total consolidado em cada município
         </p>
       </div>
 

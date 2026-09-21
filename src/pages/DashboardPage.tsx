@@ -10,10 +10,13 @@ import { AppShell }     from '@/components/layout/AppShell'
 import { Button, Card, PageHeader } from '@/components/ui'
 import { MetricCard }   from '@/components/admin/MetricCard'
 import { AgentesTable } from '@/components/admin/AgentesTable'
-import { ProjecaoVotosCard } from '@/components/dashboard/ProjecaoVotosCard'
 import { TimelineChart } from '@/components/dashboard/TimelineChart'
 import { VinculoChart }  from '@/components/dashboard/VinculoChart'
 import { CidadeChart }   from '@/components/dashboard/CidadeChart'
+import {
+  GeografiaCard,
+  type Bairro, type CoberturaGeografica, type Municipio,
+} from '@/components/dashboard/GeografiaCard'
 import {
   ColaboradoresCard, DuplicadosCard, ZonaCoberturaCard,
   type Colaborador, type Duplicado, type ZonaCobertura,
@@ -58,6 +61,13 @@ function StatCompacto({ icon, label, valor, detalhe, alerta = false, loading }: 
 
 type Tab = 'visao' | 'equipe'
 
+/**
+ * Capital do estado. É a única cidade grande o bastante para que a visão por
+ * município não diga nada: são 5 zonas para 1.928 seções, então lá o recorte
+ * útil é o bairro. No interior, o município já é o próprio recorte.
+ */
+const CAPITAL = 'TERESINA'
+
 // ── Página ─────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
@@ -73,6 +83,9 @@ export function DashboardPage() {
   const [zonas,         setZonas]         = useState<ZonaCobertura[]>([])
   const [duplicados,    setDuplicados]    = useState<Duplicado[]>([])
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
+  const [bairros,       setBairros]       = useState<Bairro[]>([])
+  const [municipios,    setMunicipios]    = useState<Municipio[]>([])
+  const [cobertura,     setCobertura]     = useState<CoberturaGeografica | null>(null)
 
   const [dias,        setDias]        = useState(30)
   const [loading,     setLoading]     = useState(true)
@@ -85,16 +98,20 @@ export function DashboardPage() {
     setLoading(true)
     setErro(null)
 
-    const [m, v, c, z, d, col] = await Promise.all([
+    const [m, v, c, z, d, col, b, mun, cob] = await Promise.all([
       supabase.rpc('get_registros_metrics'),
       supabase.rpc('get_registros_por_vinculo',     { p_limit: 12 }),
       supabase.rpc('get_registros_por_cidade',      { p_limit: 10 }),
       supabase.rpc('get_registros_por_zona',        { p_limit: 8  }),
       supabase.rpc('get_registros_duplicados',      { p_limit: 8  }),
       supabase.rpc('get_registros_por_colaborador', { p_limit: 8  }),
+      supabase.rpc('get_registros_por_bairro',      { p_municipio: CAPITAL, p_limit: 15 }),
+      // A capital sai da lista de municípios: ela tem aba própria, por bairro
+      supabase.rpc('get_registros_por_municipio',   { p_limit: 15, p_excluir: CAPITAL }),
+      supabase.rpc('get_cobertura_geografica',      { p_capital: CAPITAL }),
     ])
 
-    const falha = [m, v, c, z, d, col].find(r => r.error)
+    const falha = [m, v, c, z, d, col, b, mun, cob].find(r => r.error)
     if (falha?.error) setErro(falha.error.message)
 
     if (m.data)   setMetrics(m.data as unknown as RegistrosMetrics)
@@ -103,6 +120,9 @@ export function DashboardPage() {
     if (z.data)   setZonas(z.data)
     if (d.data)   setDuplicados(d.data as Duplicado[])
     if (col.data) setColaboradores(col.data as Colaborador[])
+    if (b.data)   setBairros(b.data as Bairro[])
+    if (mun.data) setMunicipios(mun.data as Municipio[])
+    if (cob.data) setCobertura(cob.data as unknown as CoberturaGeografica)
 
     setLoading(false)
   }, [])
@@ -223,8 +243,14 @@ export function DashboardPage() {
             />
           </div>
 
-          {/* Projeção de votos — 1 registro = 1 voto */}
-          <ProjecaoVotosCard metrics={metrics} loading={loading} />
+          {/* Onde os registros estão: bairro na capital, município no interior */}
+          <GeografiaCard
+            capital={CAPITAL}
+            bairros={bairros}
+            municipios={municipios}
+            cobertura={cobertura}
+            loading={loading}
+          />
 
           {/* Faixa secundária — qualidade e alcance */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -23,6 +23,8 @@ interface SecaoUpsert {
   municipio:     string;
   zona:          string;
   local_votacao: string;
+  /** Bairro do local de votação — é o que dá granularidade dentro de Teresina */
+  bairro:        string | null;
   secao:         string;
   urna:          string;
   last_synced:   string;
@@ -156,6 +158,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       municipio:     headers.indexOf("LOCALIDADE"),
       zona:          headers.indexOf("ZONA"),
       local_votacao: headers.indexOf("LOCAL_VOTACAO"),
+      bairro:        headers.indexOf("BAIRRO"),
       secoes:        headers.indexOf("SECOES"),
     };
 
@@ -165,7 +168,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (col.secoes        < 0) col.secoes        = headers.findIndex(h => /^SECOES?$/.test(h) || /^SEÇÕES?$/.test(h));
 
     const missing = (Object.entries(col) as [string, number][])
-      .filter(([key, idx]) => key !== "uf" && idx < 0) // uf é opcional
+      // uf e bairro são opcionais: a sincronização não pode quebrar se o
+      // TRE mudar essas colunas, já que nenhuma das duas é chave.
+      .filter(([key, idx]) => key !== "uf" && key !== "bairro" && idx < 0)
       .map(([name]) => name);
 
     if (missing.length > 0) {
@@ -212,6 +217,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const zona          = normalizeText(fields[col.zona]          ?? "");
       const local_votacao = normalizeText(fields[col.local_votacao] ?? "");
       const secoesRaw     =               fields[col.secoes]        ?? "";
+      const bairro        = col.bairro >= 0
+        ? normalizeText(fields[col.bairro] ?? "") || null
+        : null;
 
       if (!municipio || !zona || !local_votacao || !secoesRaw.trim()) {
         totalSkipped++;
@@ -229,7 +237,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       for (const secao of secoes) {
         const key = `${municipio}|${zona}|${local_votacao}|${secao}|-`;
         if (seen.has(key)) continue;
-        seen.set(key, { municipio, zona, local_votacao, secao, urna: "-", last_synced: syncedAt });
+        seen.set(key, { municipio, zona, local_votacao, bairro, secao, urna: "-", last_synced: syncedAt });
         batch.push(seen.get(key)!);
       }
 

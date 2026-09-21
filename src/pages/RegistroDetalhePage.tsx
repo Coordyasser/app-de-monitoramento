@@ -18,7 +18,7 @@ import type { RegistroDetalhado } from '@/types/database.types'
 
 // String literal única: o select() do Supabase infere o tipo do retorno a
 // partir dela, e uma concatenação faz a inferência cair para GenericStringError.
-const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao'
+const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao,bairro'
 
 /** Valores que a planilha de origem usa na coluna SITUAÇÃO. */
 const SITUACOES = ['OK', 'PENDENTE', 'CONFERIR']
@@ -410,6 +410,12 @@ export function RegistroDetalhePage() {
           ) : (
             <Campo icon={<MapPin size={15} />} label="Seção eleitoral">
               {registro.cidade} · Zona {registro.zona} · Seção {registro.secao}
+              {/* Bairro e local só existem quando a seção veio da base oficial */}
+              {registro.bairro && (
+                <span className="block text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  Bairro {registro.bairro}
+                </span>
+              )}
               {registro.local_votacao && (
                 <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {registro.local_votacao}
