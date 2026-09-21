@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  AlertCircle, CalendarDays, ClipboardList, Copy, LayoutDashboard,
-  MapPin, Plus, ShieldCheck, TrendingUp, Users,
+  AlertCircle, CalendarDays, ClipboardList, LayoutDashboard,
+  MapPin, MapPinOff, Plus, SearchX, ShieldCheck, TrendingUp, Users,
 } from 'lucide-react'
 import { supabase }     from '@/lib/supabase'
 import { useAuth }      from '@/contexts/AuthContext'
@@ -252,8 +252,10 @@ export function DashboardPage() {
             />
           </div>
 
-          {/* Faixa secundária — qualidade e alcance */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Faixa secundária — alcance e, logo em seguida, o que falta.
+              Os dois últimos explicam por que os gráficos de cidade e bairro
+              somam menos que o total de registros. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <StatCompacto
               icon={<MapPin size={16} />}
               label="Zonas cobertas"
@@ -274,11 +276,19 @@ export function DashboardPage() {
               loading={loading}
             />
             <StatCompacto
-              icon={<Copy size={16} />}
-              label="Contatos repetidos"
-              valor={(metrics?.contatos_duplicados ?? 0).toLocaleString('pt-BR')}
-              detalhe={(metrics?.contatos_duplicados ?? 0) > 0 ? 'Revisar possíveis duplicatas' : 'Nenhuma duplicata'}
-              alerta={(metrics?.contatos_duplicados ?? 0) > 0}
+              icon={<MapPinOff size={16} />}
+              label="Sem zona e seção"
+              valor={(cobertura?.sem_zona_secao ?? 0).toLocaleString('pt-BR')}
+              detalhe="Planilha não informa"
+              alerta={(cobertura?.sem_zona_secao ?? 0) > 0}
+              loading={loading}
+            />
+            <StatCompacto
+              icon={<SearchX size={16} />}
+              label="Seção fora da base"
+              valor={(cobertura?.secao_sem_base ?? 0).toLocaleString('pt-BR')}
+              detalhe="Corrigível na planilha"
+              alerta={(cobertura?.secao_sem_base ?? 0) > 0}
               loading={loading}
             />
           </div>

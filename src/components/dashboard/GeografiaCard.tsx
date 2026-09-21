@@ -15,6 +15,10 @@ export interface Municipio { municipio: string; total: number; secoes: number; v
 export interface CoberturaGeografica {
   total:               number
   sem_localizacao:     number
+  /** Planilha traz NÃO CONSTA em zona e seção — dado nunca coletado */
+  sem_zona_secao:      number
+  /** Zona e seção preenchidas, mas o par não existe na base do TRE-PI */
+  secao_sem_base:      number
   capital:             number
   interior:            number
   municipios:          number
@@ -211,8 +215,10 @@ export function GeografiaCard({
             )}
             {cobertura.sem_localizacao > 0 && (
               <>
-                {formatarNumero(cobertura.sem_localizacao)} de {formatarNumero(cobertura.total)} registros
-                não têm cidade informada e não entram em nenhuma das visões.
+                Outros {formatarNumero(cobertura.sem_localizacao)} de{' '}
+                {formatarNumero(cobertura.total)} registros ficam fora de todas as
+                visões por não terem localização — o motivo de cada um está nos
+                cartões no topo da página.
               </>
             )}
           </p>
