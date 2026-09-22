@@ -1,49 +1,8 @@
-import { type ReactNode } from 'react'
-import { Card } from '@/components/ui'
-import { formatarNumero } from './viz'
-import { capitalizarLugar } from '@/lib/texto'
+import { Link } from 'react-router-dom'
+import { capitalizarLugar, ehNaoConsta } from '@/lib/texto'
+import { nomeProprio, numero } from './formato'
 
-// ── Casca comum das três listas do dashboard ───────────────────────────────
-
-interface ListaCardProps {
-  titulo:   string
-  subtitulo?: string
-  vazio:    string
-  loading:  boolean
-  itens:    number
-  children: ReactNode
-  acao?:    ReactNode
-}
-
-function ListaCard({ titulo, subtitulo, vazio, loading, itens, children, acao }: ListaCardProps) {
-  return (
-    <Card padding="md" className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{titulo}</h3>
-          {subtitulo && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitulo}</p>
-          )}
-        </div>
-        {acao}
-      </div>
-
-      {loading ? (
-        <div className="flex flex-col gap-2 animate-pulse">
-          {[0, 1, 2, 3].map(i => (
-            <div key={i} className="h-8 rounded-lg bg-slate-100 dark:bg-white/10" />
-          ))}
-        </div>
-      ) : itens === 0 ? (
-        <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">
-          {vazio}
-        </div>
-      ) : children}
-    </Card>
-  )
-}
-
-// ── Cobertura territorial ──────────────────────────────────────────────────
+// ── Cobertura por zona ─────────────────────────────────────────────────────
 
 export interface ZonaCobertura {
   cidade: string
@@ -52,43 +11,88 @@ export interface ZonaCobertura {
   total:  number
 }
 
+/**
+ * Cobertura por zona.
+ *
+ * As linhas sem cidade ou sem zona ficam em laranja e dizem o que falta em vez
+ * de estampar "NÃO CONSTA": a sentinela é linguagem de planilha, e quem lê o
+ * dashboard precisa saber que aquilo é trabalho pendente, não um lugar.
+ */
 export function ZonaCoberturaCard({ data, loading }: { data: ZonaCobertura[]; loading: boolean }) {
+  const maior = Math.max(1, ...data.map(z => z.total))
+  const incompletos = data
+    .filter(z => ehNaoConsta(z.cidade) || ehNaoConsta(z.zona))
+    .reduce((s, z) => s + z.total, 0)
+
   return (
-    <ListaCard
-      titulo="Cobertura por zona"
-      subtitulo="Onde a equipe está alcançando"
-      vazio="Nenhuma zona coberta ainda"
-      loading={loading}
-      itens={data.length}
-    >
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-            <th className="pb-2 font-medium">Cidade / Zona</th>
-            <th className="pb-2 font-medium text-right">Seções</th>
-            <th className="pb-2 font-medium text-right">Registros</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-white/40 dark:divide-white/[0.06]">
-          {data.map(z => (
-            <tr key={`${z.cidade}-${z.zona}`}>
-              <td className="py-2 pr-2">
-                <span className="block truncate max-w-[180px] text-slate-700 dark:text-slate-200">
-                  {capitalizarLugar(z.cidade)}
-                </span>
-                <span className="text-xs text-slate-400 dark:text-slate-500">Zona {z.zona}</span>
-              </td>
-              <td className="py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">
-                {formatarNumero(z.secoes)}
-              </td>
-              <td className="py-2 text-right tabular-nums font-semibold text-slate-700 dark:text-slate-200">
-                {formatarNumero(z.total)}
-              </td>
-            </tr>
+    <article className="card span-6">
+      <div className="card-head">
+        <div>
+          <h2 className="card-title">Cobertura por zona</h2>
+          <p className="card-sub">Onde a equipe está alcançando</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="zone-rows">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skel skel-line" style={{ height: 34, margin: '10px 0' }} />
           ))}
-        </tbody>
-      </table>
-    </ListaCard>
+        </div>
+      ) : data.length === 0 ? (
+        <p className="card-sub">Nenhuma zona coberta ainda.</p>
+      ) : (
+        <>
+          <div className="zone-head">
+            <span>Cidade e zona</span>
+            <span>Seções</span>
+            <span />
+            <span>Reg.</span>
+          </div>
+
+          <div className="zone-rows">
+            {data.map((z, i) => {
+              const semCidade = ehNaoConsta(z.cidade)
+              const semZona   = ehNaoConsta(z.zona)
+              const alerta    = semCidade || semZona
+              const cidade    = semCidade ? 'Cidade não informada' : capitalizarLugar(z.cidade)
+              const sub       = semZona ? 'Zona não informada' : `Zona ${z.zona}`
+              return (
+                <div key={`${z.cidade}-${z.zona}-${i}`} className={`zone-row${alerta ? ' flag' : ''}`}>
+                  <div className="zone-place">
+                    <span className="zone-chip">{semZona ? '?' : `Z${z.zona}`}</span>
+                    <div className="zone-place-text">
+                      <span className="zone-city ellipsis">{cidade}</span>
+                      <span className="zone-sub">{sub}</span>
+                    </div>
+                  </div>
+                  <span className="sec">{numero(z.secoes)}</span>
+                  <div
+                    className="track thin"
+                    role="img"
+                    aria-label={`${cidade}, ${sub}: ${numero(z.total)} registros`}
+                  >
+                    <div className="fill" style={{ width: `${(z.total / maior * 100).toFixed(1)}%` }} />
+                  </div>
+                  <span className="reg">{numero(z.total)}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="card-foot">
+            {incompletos > 0 ? (
+              <span>
+                <strong>{numero(incompletos)}</strong> registros sem cidade ou zona aparecem em
+                laranja. <Link to="/registros">Completar dados</Link>
+              </span>
+            ) : (
+              <span>Todos os registros têm cidade e zona informadas.</span>
+            )}
+          </div>
+        </>
+      )}
+    </article>
   )
 }
 
@@ -101,33 +105,59 @@ export interface Duplicado {
   ultimo:     string
 }
 
+/** 4 ou mais é vermelho, 3 é laranja, 2 é neutro. */
+function classeContagem(n: number) {
+  if (n >= 4) return 'count-badge hi'
+  if (n === 3) return 'count-badge mid'
+  return 'count-badge'
+}
+
 export function DuplicadosCard({ data, loading }: { data: Duplicado[]; loading: boolean }) {
+  const atingidos = data.reduce((s, d) => s + d.repeticoes, 0)
+
   return (
-    <ListaCard
-      titulo="Contatos repetidos"
-      subtitulo="Mesmo telefone ou e-mail em mais de um registro"
-      vazio="Nenhuma repetição encontrada"
-      loading={loading}
-      itens={data.length}
-    >
-      <ul className="flex flex-col divide-y divide-white/40 dark:divide-white/[0.06]">
-        {data.map(d => (
-          <li key={d.contato} className="py-2.5 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
-                {d.contato}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-                {d.nomes.join(' · ')}
-              </p>
+    <article className="card span-6">
+      <div className="card-head">
+        <div>
+          <h2 className="card-title">Contatos repetidos</h2>
+          <p className="card-sub">
+            {loading
+              ? 'Mesmo telefone ou e-mail em mais de um registro'
+              : `${numero(data.length)} contatos repetidos em ${numero(atingidos)} registros`}
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="dups">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skel skel-line" style={{ height: 40, margin: '11px 0' }} />
+          ))}
+        </div>
+      ) : data.length === 0 ? (
+        <p className="card-sub">Nenhuma repetição encontrada.</p>
+      ) : (
+        <div className="dups">
+          {data.map(d => (
+            <div key={d.contato} className="dup">
+              <span className="dup-phone">{d.contato}</span>
+              <span
+                className={classeContagem(d.repeticoes)}
+                title={`${d.repeticoes} registros com este contato`}
+              >
+                {d.repeticoes}×
+              </span>
+              <div className="dup-names">
+                {d.nomes.map(n => (
+                  <span key={n} className="name-chip" title={nomeProprio(n)}>
+                    {nomeProprio(n)}
+                  </span>
+                ))}
+              </div>
             </div>
-            <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
-                             bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-              {formatarNumero(d.repeticoes)}×
-            </span>
-          </li>
-        ))}
-      </ul>
-    </ListaCard>
+          ))}
+        </div>
+      )}
+    </article>
   )
 }

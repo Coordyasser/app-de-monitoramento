@@ -50,3 +50,6 @@ Thumbs.db
 # eleitor e telefone de pessoas reais (LGPD). Gerados a cada execução;
 # o repositório é público, então nunca devem ser versionados.
 scripts/*.csv
+
+# Protótipo visual do dashboard: tem dados reais de eleitores, nunca vai ao repositório
+prot.html

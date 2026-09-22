@@ -14,9 +14,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@600;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+
+    <!--
+      Tema antes da primeira pintura. Se esperasse o React montar, o app
+      apareceria claro por um quadro e piscaria para o escuro.
+    -->
+    <script>
+      (function () {
+        try {
+          var salvo = localStorage.getItem('tema')
+          var escuro = salvo
+            ? salvo === 'escuro'
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+          if (escuro) document.documentElement.classList.add('dark')
+        } catch (e) { /* storage bloqueado: começa claro */ }
+      })()
+    </script>
 
     <!-- Open Graph / WhatsApp / redes sociais -->
     <meta property="og:type" content="website" />

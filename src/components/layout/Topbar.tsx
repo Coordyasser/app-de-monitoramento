@@ -1,7 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ShieldCheck, LayoutDashboard, FileText, PlusCircle, Settings, LogOut, Menu, X } from 'lucide-react'
+import {
+  ShieldCheck, LayoutDashboard, FileText, PlusCircle, Settings, LogOut, Menu, Moon, Sun, X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTema } from '@/hooks/useTema'
 
 const navItems = [
   { to: '/dashboard',      label: 'Dashboard',     icon: LayoutDashboard, public: false },
@@ -15,6 +18,8 @@ export function Topbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { tema, alternar } = useTema()
+  const escuro = tema === 'escuro'
 
   const visibleItems = navItems.filter(item => item.public || !!profile)
 
@@ -66,6 +71,18 @@ export function Topbar() {
 
             {/* Ações direita */}
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={alternar}
+                title={escuro ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+                aria-label={escuro ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+                aria-pressed={escuro}
+                className="p-2 rounded-xl text-slate-500 dark:text-slate-300
+                           hover:bg-white/40 dark:hover:bg-white/10 transition-colors duration-200"
+              >
+                {escuro ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
               {profile ? (
                 <>
                   <span className="hidden sm:block text-sm text-slate-500 dark:text-slate-400">
