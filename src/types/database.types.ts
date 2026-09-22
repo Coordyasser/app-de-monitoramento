@@ -425,6 +425,13 @@ export type Database = {
           local_votacao: string
         }[]
       }
+      get_municipios_por_zona: {
+        Args: { p_zona: string }
+        Returns: {
+          municipio: string
+          secoes: number
+        }[]
+      }
       get_secoes_cidade_zona_pi: {
         Args: { p_municipio: string; p_zona: string }
         Returns: {
