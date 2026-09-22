@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { Button, Card, ComboboxSelect, Input } from '@/components/ui'
 import { capitalizarLugar, ehNaoConsta, exibirTexto } from '@/lib/texto'
 import { FILTROS_SITUACAO, filtroSituacao, situacaoEfetiva } from '@/lib/situacao'
+import { FILTROS_EST, SEM_EST } from '@/lib/est'
 import { SituacaoBadge } from '@/components/registros/SituacaoBadge'
 import type { RegistroDetalhado } from '@/types/database.types'
 
@@ -18,12 +19,13 @@ interface Filtros {
   cidade:   string
   vinculo:  string
   situacao: string
+  est:      string
   dataDe:   string
   dataAte:  string
 }
 
 const FILTROS_VAZIOS: Filtros = {
-  busca: '', cidade: '', vinculo: '', situacao: '', dataDe: '', dataAte: '',
+  busca: '', cidade: '', vinculo: '', situacao: '', est: '', dataDe: '', dataAte: '',
 }
 
 interface Props {
@@ -141,6 +143,11 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
     // comparar a coluna crua. Ver `filtroSituacao`.
     const situacao = filtroSituacao(f.situacao)
     if (situacao) q = q.or(situacao)
+
+    // Est é coluna de verdade, com domínio fechado: comparação direta. Em
+    // branco é NULL, que `eq` nunca casaria.
+    if (f.est === SEM_EST)  q = q.is('est', null)
+    else if (f.est)         q = q.eq('est', f.est)
 
     if (f.dataDe)  q = q.gte('created_at', `${f.dataDe}T00:00:00`)
     if (f.dataAte) q = q.lte('created_at', `${f.dataAte}T23:59:59`)
@@ -278,7 +285,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
             <Filter size={13} />
             Filtros
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <Input
               placeholder="Nome, título ou contato"
               icon={<Search size={15} />}
@@ -302,6 +309,12 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
               value={filtros.situacao}
               onChange={v => aplicar({ situacao: v })}
               placeholder="Todas as situações"
+            />
+            <ComboboxSelect
+              options={FILTROS_EST}
+              value={filtros.est}
+              onChange={v => aplicar({ est: v })}
+              placeholder="Todos os Est"
             />
             <Input
               type="date"
@@ -354,6 +367,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                 <th className="px-5 py-3 font-medium hidden md:table-cell">Título</th>
                 <th className="px-5 py-3 font-medium hidden lg:table-cell">Vínculo</th>
                 <th className="px-5 py-3 font-medium">Situação</th>
+                <th className="px-5 py-3 font-medium">Est</th>
                 <th className="px-5 py-3 font-medium">Localização</th>
                 <th className="px-5 py-3 font-medium hidden sm:table-cell">Data</th>
                 <th className="px-5 py-3 font-medium text-right sr-only">Abrir</th>
@@ -390,6 +404,9 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                     {r.situacao
                       ? <SituacaoBadge registro={r} tamanho="sm" />
                       : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                  </td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    {r.est ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
                   </td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                     <span className="flex items-center gap-1.5">

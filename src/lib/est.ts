@@ -16,3 +16,14 @@ export const EST_SELECT = [
 export function ehEstValido(valor: string): boolean {
   return valor === '' || (EST_OPCOES as readonly string[]).includes(valor)
 }
+
+/**
+ * Opções do filtro da lista. Vazio ali significa "não filtrar", então o
+ * registro em branco precisa de um valor próprio para ser procurável.
+ */
+export const SEM_EST = 'SEM'
+
+export const FILTROS_EST = [
+  ...EST_OPCOES.map(v => ({ value: v, label: v })),
+  { value: SEM_EST, label: 'Em branco' },
+]
