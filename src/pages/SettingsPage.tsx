@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { Card, Input, Button, Modal, PageHeader } from '@/components/ui'
+import { VinculosCard } from '@/components/admin/VinculosCard'
 
 const schema = z.object({
   full_name: z.string().min(3, 'Nome obrigatório'),
@@ -140,6 +141,9 @@ export function SettingsPage() {
             </div>
           </form>
         </Card>
+
+        {/* Vínculos — só admin: renomear reescreve registros da equipe inteira */}
+        {profile?.role === 'admin' && <VinculosCard />}
 
         {/* LGPD */}
         <Card padding="lg">

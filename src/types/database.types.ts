@@ -223,6 +223,27 @@ export type Database = {
         }
         Relationships: []
       }
+      vinculos: {
+        Row: {
+          id: string
+          nome: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       vw_ocorrencias_detalhadas: {
@@ -378,6 +399,26 @@ export type Database = {
         Returns: {
           usos: number
           vinculo: string
+        }[]
+      }
+      get_vinculos_cadastrados: {
+        Args: never
+        Returns: {
+          id: string
+          nome: string
+          registros: number
+        }[]
+      }
+      renomear_vinculo: {
+        Args: { p_id: string; p_nome: string }
+        Returns: Json
+      }
+      get_municipios_por_zona_secao: {
+        Args: { p_zona: string; p_secao: string }
+        Returns: {
+          municipio: string
+          secao_id: string
+          local_votacao: string
         }[]
       }
       get_secoes_cidade_zona_pi: {

@@ -427,6 +427,42 @@ if (alterados.length) {
   }
 }
 
+// ── 7. cadastro de vínculos ──────────────────────────────────
+//
+// O formulário do app só oferece vínculos cadastrados (migration 015), mas a
+// planilha continua sendo texto livre e manda nos valores. Sem este passo, um
+// vínculo que só existe na planilha ficaria invisível para quem cadastra pelo
+// app.
+//
+// O que já existe é filtrado aqui, e não por ON CONFLICT: a unicidade do
+// cadastro é por índice de expressão (txt_norm do nome), que o upsert do
+// PostgREST não sabe mirar — ele assume a chave primária e a inserção
+// morreria com violação de índice.
+const normVinculo = s => String(s ?? '')
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/\s+/g, ' ').trim();
+
+const jaCadastrados = new Set(
+  (await buscarTudo('vinculos', 'nome')).map(v => normVinculo(v.nome)),
+);
+const vinculosNovos = [...new Map(
+  [...daPlanilha.values()]
+    .map(r => r.vinculo)
+    .filter(v => v && v !== NAO_CONSTA && v.length >= 2 && v.length <= 80)
+    .filter(v => !jaCadastrados.has(normVinculo(v)))
+    .map(v => [normVinculo(v), v]),
+).values()];
+
+if (vinculosNovos.length) {
+  console.log(`\nCadastrando ${vinculosNovos.length} vínculo(s) que só existiam na planilha…`);
+  console.log(`  ${vinculosNovos.join(' | ')}`);
+  await api('vinculos', {
+    method: 'POST',
+    body: JSON.stringify(vinculosNovos.map(nome => ({ nome }))),
+    headers: { Prefer: 'return=minimal' },
+  });
+}
+
 const total = await fetch(`${URL_SUPABASE}/rest/v1/registros?select=id&limit=1`, {
   headers: { apikey: CHAVE, Authorization: `Bearer ${CHAVE}`, Prefer: 'count=exact' },
 });

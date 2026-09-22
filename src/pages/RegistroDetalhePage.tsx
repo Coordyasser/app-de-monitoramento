@@ -16,6 +16,7 @@ import {
 import { conferirTitulo, formatarTitulo } from '@/lib/titulo'
 import { SITUACOES, situacaoEfetiva } from '@/lib/situacao'
 import { SituacaoBadge } from '@/components/registros/SituacaoBadge'
+import { VinculoSelect } from '@/components/registros/VinculoSelect'
 import { capitalizarLugar, ehNaoConsta, exibirTexto, ouNaoConsta, semSentinela } from '@/lib/texto'
 import type { RegistroDetalhado } from '@/types/database.types'
 
@@ -386,7 +387,11 @@ export function RegistroDetalhePage() {
                 onChange={e => setTitulo(e.target.value)}
                 hint={conferirTitulo(titulo).mensagem}
               />
-              <Input label="Vínculo" value={vinculo} onChange={e => setVinculo(e.target.value)} />
+              <VinculoSelect
+                value={vinculo}
+                onChange={setVinculo}
+                incluir={registro.vinculo}
+              />
               <div className="flex flex-col gap-1.5">
                 <Select
                   label="Situação"

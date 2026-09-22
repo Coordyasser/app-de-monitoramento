@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  AlertCircle, CheckCircle2, FileText, Link2, Phone, Save, User,
+  AlertCircle, CheckCircle2, FileText, Phone, Save, User,
 } from 'lucide-react'
 import { supabase }   from '@/lib/supabase'
-import { ehNaoConsta, ouNaoConsta } from '@/lib/texto'
+import { ouNaoConsta } from '@/lib/texto'
 import { situacaoEfetiva } from '@/lib/situacao'
 import { useAuth }    from '@/contexts/AuthContext'
 import { AppShell }   from '@/components/layout/AppShell'
@@ -16,6 +16,7 @@ import {
   LocalizacaoFields, LOCALIZACAO_VAZIA,
   type LocalizacaoErrors, type LocalizacaoRegistro,
 } from '@/components/registros/LocalizacaoFields'
+import { VinculoSelect } from '@/components/registros/VinculoSelect'
 
 // ── Limites (espelham os CHECKs da migration 010) ──────────────────────────
 
@@ -73,13 +74,12 @@ export function NovoRegistroPage() {
   const [localizacaoErr, setLocalizacaoErr] = useState<LocalizacaoErrors>({})
   const [serverError,    setServerError]    = useState<string | null>(null)
   const [sucesso,        setSucesso]        = useState<string | null>(null)
-  const [vinculosUsados, setVinculosUsados] = useState<string[]>([])
 
   // "Salvar e adicionar outro" mantém a localização e limpa o resto
   const continuarRef = useRef(false)
 
   const {
-    register, handleSubmit, watch, reset,
+    register, handleSubmit, watch, reset, setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -87,15 +87,6 @@ export function NovoRegistroPage() {
   })
 
   const observacoesValue = watch('observacoes') ?? ''
-
-  // Sugestões de vínculo já usados pela equipe — o campo é texto livre,
-  // a lista só ajuda a convergir na mesma grafia. A sentinela sai fora:
-  // "Não consta" é ausência de vínculo, não um vínculo a sugerir.
-  useEffect(() => {
-    supabase.rpc('get_vinculos_sugeridos', { p_limit: 30 }).then(({ data }) => {
-      setVinculosUsados((data ?? []).map(r => r.vinculo).filter(v => !ehNaoConsta(v)))
-    })
-  }, [])
 
   // Aviso do que entra como "Não consta" — o agente salva sabendo o que falta.
   const emBranco = [
@@ -219,22 +210,16 @@ export function NovoRegistroPage() {
                   error={errors.titulo?.message}
                   {...register('titulo')}
                 />
-                <div>
-                  <Input
-                    label="Vínculo"
-                    placeholder="Ex.: Liderança comunitária"
-                    autoComplete="off"
-                    list="vinculos-sugeridos"
-                    icon={<Link2 size={15} />}
-                    hint={vinculosUsados.length > 0
-                      ? 'Opcional, campo livre — a lista mostra vínculos já usados pela equipe'
-                      : 'Opcional, campo livre'}
+                <div className="flex flex-col gap-1.5">
+                  <VinculoSelect
+                    value={watch('vinculo') ?? ''}
+                    onChange={v => setValue('vinculo', v, { shouldValidate: true })}
                     error={errors.vinculo?.message}
-                    {...register('vinculo')}
                   />
-                  <datalist id="vinculos-sugeridos">
-                    {vinculosUsados.map(v => <option key={v} value={v} />)}
-                  </datalist>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Opcional. A lista é o cadastro de vínculos; para incluir um novo,
+                    peça ao administrador em Configurações.
+                  </p>
                 </div>
               </div>
             </div>
