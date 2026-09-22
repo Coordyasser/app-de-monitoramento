@@ -130,6 +130,7 @@ export type Database = {
           contato_digits: string | null
           created_at: string
           created_by: string | null
+          est: string | null
           id: string
           nome: string
           observacoes: string | null
@@ -147,6 +148,7 @@ export type Database = {
           contato: string
           created_at?: string
           created_by?: string | null
+          est?: string | null
           id?: string
           nome: string
           observacoes?: string | null
@@ -164,6 +166,7 @@ export type Database = {
           contato?: string
           created_at?: string
           created_by?: string | null
+          est?: string | null
           id?: string
           nome?: string
           observacoes?: string | null
@@ -283,6 +286,7 @@ export type Database = {
           contato: string | null
           created_at: string | null
           created_by: string | null
+          est: string | null
           id: string | null
           local_votacao: string | null
           localizacao_validada: boolean | null

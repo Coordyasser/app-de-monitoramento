@@ -36,7 +36,7 @@ interface Props {
 const PAGE_SIZE   = 12
 const EXPORT_MAX  = 5000
 
-const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao'
+const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao,est'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ function sanitizarBusca(termo: string) {
 
 function paraCSV(linhas: RegistroDetalhado[]): string {
   const cabecalho = [
-    'Nome', 'Contato', 'Título', 'Vínculo', 'Situação', 'Cidade', 'Zona', 'Seção',
+    'Nome', 'Contato', 'Título', 'Vínculo', 'Situação', 'Est', 'Cidade', 'Zona', 'Seção',
     'Local de votação', 'Localização validada', 'Observações', 'Registrado por', 'Data',
   ]
   const escapar = (v: unknown) => {
@@ -76,7 +76,7 @@ function paraCSV(linhas: RegistroDetalhado[]): string {
     return `"${texto.replace(/"/g, '""')}"`
   }
   const corpo = linhas.map(r => [
-    r.nome, r.contato, r.titulo, r.vinculo, situacaoEfetiva(r) ?? '',
+    r.nome, r.contato, r.titulo, r.vinculo, situacaoEfetiva(r) ?? '', r.est ?? '',
     capitalizarLugar(r.cidade), r.zona, r.secao,
     r.local_votacao ?? '', r.localizacao_validada ? 'Sim' : 'Não',
     r.observacoes ?? '', r.agente_nome ?? '', formatarData(r.created_at),

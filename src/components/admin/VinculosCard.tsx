@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  AlertCircle, Check, Link2, Loader2, Pencil, Plus, X,
+  AlertCircle, Check, Link2, Loader2, Pencil, Plus, Search, X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button, Card, Input } from '@/components/ui'
@@ -34,6 +34,8 @@ export function VinculosCard() {
   const [criando, setCriando] = useState(false)
   const [novo,    setNovo]    = useState('')
 
+  const [busca, setBusca] = useState('')
+
   const carregar = useCallback(async () => {
     setCarregando(true)
     const { data, error } = await supabase.rpc('get_vinculos_cadastrados')
@@ -51,6 +53,16 @@ export function VinculosCard() {
     const t = setTimeout(() => setAviso(null), 5000)
     return () => clearTimeout(t)
   }, [aviso])
+
+  // Busca sem acento e sem caixa: quem procura "lideranca" quer achar
+  // "Liderança", que é justamente a grafia que o cadastro guarda.
+  const semAcento = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+
+  const termo     = semAcento(busca)
+  const filtrados = termo
+    ? vinculos.filter(v => semAcento(v.nome).includes(termo))
+    : vinculos
 
   function abrirEdicao(v: VinculoCadastrado) {
     setEditandoId(v.id)
@@ -179,6 +191,23 @@ export function VinculosCard() {
         </p>
       )}
 
+      {/* Busca — a lista passa de uma centena de nomes */}
+      {!carregando && vinculos.length > 0 && (
+        <div className="mb-3">
+          <Input
+            placeholder="Buscar vínculo..."
+            icon={<Search size={15} />}
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+          />
+          <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+            {termo
+              ? `${filtrados.length} de ${vinculos.length} ${vinculos.length === 1 ? 'vínculo' : 'vínculos'}`
+              : `${vinculos.length} ${vinculos.length === 1 ? 'vínculo cadastrado' : 'vínculos cadastrados'}`}
+          </p>
+        </div>
+      )}
+
       {/* Lista */}
       {carregando ? (
         <div className="py-10 flex items-center justify-center">
@@ -188,9 +217,14 @@ export function VinculosCard() {
         <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
           Nenhum vínculo cadastrado ainda.
         </p>
+      ) : filtrados.length === 0 ? (
+        <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+          Nenhum vínculo com "{busca.trim()}".
+        </p>
       ) : (
-        <ul className="divide-y divide-slate-200/60 dark:divide-white/10">
-          {vinculos.map(v => (
+        <ul className="max-h-80 overflow-y-auto pr-1
+                       divide-y divide-slate-200/60 dark:divide-white/10">
+          {filtrados.map(v => (
             <li key={v.id} className="py-3 first:pt-0 last:pb-0">
               {editandoId === v.id ? (
                 <div className="flex flex-col sm:flex-row sm:items-end gap-3">

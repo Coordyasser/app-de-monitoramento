@@ -9,9 +9,10 @@ import {
 import { supabase }   from '@/lib/supabase'
 import { ouNaoConsta } from '@/lib/texto'
 import { situacaoEfetiva } from '@/lib/situacao'
+import { EST_SELECT, ehEstValido } from '@/lib/est'
 import { useAuth }    from '@/contexts/AuthContext'
 import { AppShell }   from '@/components/layout/AppShell'
-import { Button, Card, Input, PageHeader, Textarea } from '@/components/ui'
+import { Button, Card, Input, PageHeader, Select, Textarea } from '@/components/ui'
 import {
   LocalizacaoFields, LOCALIZACAO_VAZIA,
   type LocalizacaoErrors, type LocalizacaoRegistro,
@@ -44,12 +45,15 @@ const schema = z.object({
   contato: opcional(8, 60, 'Telefone ou e-mail curto demais — deixe em branco se ainda não tem'),
   titulo:  opcional(3, 120, 'Título curto demais — deixe em branco se ainda não tem'),
   vinculo: opcional(2, 80,  'Vínculo curto demais — deixe em branco se ainda não tem'),
+  // Domínio fechado (migration 016): o Select já garante, mas o schema é
+  // quem fala com o banco, e o CHECK recusaria qualquer outro valor.
+  est: z.string().trim().refine(ehEstValido, 'Escolha Ana, Gil ou deixe em branco').optional(),
   observacoes: z.string().trim().max(OBS_MAX, `Máximo de ${OBS_MAX} caracteres`).optional(),
 })
 type FormValues = z.infer<typeof schema>
 
 const VALORES_INICIAIS: FormValues = {
-  nome: '', contato: '', titulo: '', vinculo: '', observacoes: '',
+  nome: '', contato: '', titulo: '', vinculo: '', est: '', observacoes: '',
 }
 
 // ── Validação da localização ───────────────────────────────────────────────
@@ -123,6 +127,8 @@ export function NovoRegistroPage() {
       zona:        ouNaoConsta(localizacao.zona),
       secao:       ouNaoConsta(localizacao.secao),
       secao_id:    localizacao.secao_id,
+      // Domínio fechado: em branco é NULL, não a sentinela.
+      est:         values.est?.trim() || null,
       observacoes: values.observacoes?.trim() || null,
     }
 
@@ -221,6 +227,17 @@ export function NovoRegistroPage() {
                     peça ao administrador em Configurações.
                   </p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select
+                  label="Est"
+                  value={watch('est') ?? ''}
+                  onChange={e => setValue('est', e.target.value, { shouldValidate: true })}
+                  placeholder="Em branco"
+                  options={EST_SELECT}
+                  error={errors.est?.message}
+                />
               </div>
             </div>
           </Card>

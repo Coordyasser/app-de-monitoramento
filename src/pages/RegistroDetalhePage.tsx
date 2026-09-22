@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   AlertCircle, BadgeCheck, Calendar, CheckCircle2, FileSpreadsheet, Link2,
   Loader2, MapPin, Pencil, Phone, ShieldCheck, Trash2, TriangleAlert,
-  User, UserCircle2,
+  Tag, User, UserCircle2,
 } from 'lucide-react'
 import { supabase }  from '@/lib/supabase'
 import { useAuth }   from '@/contexts/AuthContext'
@@ -15,6 +15,7 @@ import {
 } from '@/components/registros/LocalizacaoFields'
 import { conferirTitulo, formatarTitulo } from '@/lib/titulo'
 import { SITUACOES, situacaoEfetiva } from '@/lib/situacao'
+import { EST_SELECT } from '@/lib/est'
 import { SituacaoBadge } from '@/components/registros/SituacaoBadge'
 import { VinculoSelect } from '@/components/registros/VinculoSelect'
 import { capitalizarLugar, ehNaoConsta, exibirTexto, ouNaoConsta, semSentinela } from '@/lib/texto'
@@ -22,7 +23,7 @@ import type { RegistroDetalhado } from '@/types/database.types'
 
 // String literal única: o select() do Supabase infere o tipo do retorno a
 // partir dela, e uma concatenação faz a inferência cair para GenericStringError.
-const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao,bairro'
+const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao,bairro,est'
 
 // ── Helpers de apresentação ────────────────────────────────────────────────
 
@@ -120,6 +121,7 @@ export function RegistroDetalhePage() {
   const [titulo,      setTitulo]      = useState('')
   const [vinculo,     setVinculo]     = useState('')
   const [situacao,    setSituacao]    = useState('')
+  const [est,         setEst]         = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [localizacao, setLocalizacao] = useState<LocalizacaoRegistro>({
     cidade: '', zona: '', secao: '', secao_id: null, local_votacao: null, manual: false,
@@ -144,6 +146,7 @@ export function RegistroDetalhePage() {
     setTitulo(semSentinela(r.titulo))
     setVinculo(semSentinela(r.vinculo))
     setSituacao(r.situacao ?? '')
+    setEst(r.est ?? '')
     setObservacoes(r.observacoes ?? '')
     setLocalizacao({
       cidade:        semSentinela(r.cidade),
@@ -237,6 +240,8 @@ export function RegistroDetalhePage() {
         titulo:   titulo.trim(),
         contato:  contato.trim(),
       }),
+      // Domínio fechado: em branco é NULL, não a sentinela.
+      est:         est.trim() || null,
       cidade:      ouNaoConsta(localizacao.cidade),
       zona:        ouNaoConsta(localizacao.zona),
       secao:       ouNaoConsta(localizacao.secao),
@@ -406,6 +411,13 @@ export function RegistroDetalhePage() {
                   </p>
                 )}
               </div>
+              <Select
+                label="Est"
+                value={est}
+                onChange={e => setEst(e.target.value)}
+                placeholder="Em branco"
+                options={EST_SELECT}
+              />
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -423,6 +435,11 @@ export function RegistroDetalhePage() {
               </Campo>
               <Campo icon={<Link2 size={15} />} label="Vínculo">
                 <ValorOuFalta valor={registro.vinculo} />
+              </Campo>
+              <Campo icon={<Tag size={15} />} label="Est">
+                {registro.est
+                  ? registro.est
+                  : <span className="text-slate-400 dark:text-slate-500 italic">Em branco</span>}
               </Campo>
             </div>
           )}
