@@ -12,6 +12,7 @@ import { MetricCard }   from '@/components/admin/MetricCard'
 import { AgentesTable } from '@/components/admin/AgentesTable'
 import { TimelineChart } from '@/components/dashboard/TimelineChart'
 import { VinculoRanking, type Vinculo } from '@/components/dashboard/VinculoRanking'
+import { EstBarra, type EstContagem } from '@/components/dashboard/EstBarra'
 import {
   GeografiaCard,
   type Bairro, type CoberturaBairro, type CoberturaGeografica, type Municipio,
@@ -68,6 +69,20 @@ type Tab = 'visao' | 'equipe'
  */
 const CAPITAL = 'TERESINA'
 
+/**
+ * Contagem de um valor de Est.
+ *
+ * Est não tem RPC própria: são três contagens diretas na view, que já respeita
+ * o RLS — admin conta a base toda, agente conta a sua. `head` traz só o número
+ * no cabeçalho, sem nenhuma linha no corpo da resposta.
+ */
+function contarEst(valor: string | null) {
+  const q = supabase
+    .from('vw_registros_detalhados')
+    .select('id', { count: 'exact', head: true })
+  return valor === null ? q.is('est', null) : q.eq('est', valor)
+}
+
 // ── Página ─────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
@@ -86,6 +101,7 @@ export function DashboardPage() {
   const [municipios,    setMunicipios]    = useState<Municipio[]>([])
   const [cobertura,     setCobertura]     = useState<CoberturaGeografica | null>(null)
   const [cobBairro,     setCobBairro]     = useState<CoberturaBairro | null>(null)
+  const [est,           setEst]           = useState<EstContagem | null>(null)
 
   const [dias,        setDias]        = useState(30)
   const [loading,     setLoading]     = useState(true)
@@ -98,7 +114,7 @@ export function DashboardPage() {
     setLoading(true)
     setErro(null)
 
-    const [m, v, z, d, b, int, mun, cob, cb] = await Promise.all([
+    const [m, v, z, d, b, int, mun, cob, cb, estAna, estGil, estBranco] = await Promise.all([
       supabase.rpc('get_registros_metrics'),
       // Todos os vínculos: o gráfico existe para dar a dimensão do conjunto,
       // e cortar na 12ª liderança escondia dois terços da lista.
@@ -117,9 +133,12 @@ export function DashboardPage() {
       supabase.rpc('get_registros_por_municipio', { p_limit: 60 }),
       supabase.rpc('get_cobertura_geografica',    { p_capital: CAPITAL }),
       supabase.rpc('get_cobertura_bairro',        { p_municipio: CAPITAL }),
+      contarEst('Ana'),
+      contarEst('Gil'),
+      contarEst(null),
     ])
 
-    const falha = [m, v, z, d, b, int, mun, cob, cb].find(r => r.error)
+    const falha = [m, v, z, d, b, int, mun, cob, cb, estAna, estGil, estBranco].find(r => r.error)
     if (falha?.error) setErro(falha.error.message)
 
     if (m.data)   setMetrics(m.data as unknown as RegistrosMetrics)
@@ -132,6 +151,12 @@ export function DashboardPage() {
     if (cob.data) setCobertura(cob.data as unknown as CoberturaGeografica)
     // RETURNS TABLE devolve array; aqui é sempre uma linha só
     if (cb.data)  setCobBairro((cb.data as CoberturaBairro[])[0] ?? null)
+
+    setEst({
+      ana:    estAna.count    ?? 0,
+      gil:    estGil.count    ?? 0,
+      branco: estBranco.count ?? 0,
+    })
 
     setLoading(false)
   }, [])
@@ -319,6 +344,11 @@ export function DashboardPage() {
             onDiasChange={setDias}
             loading={serieLoading}
           />
+
+          {/* Est vem antes do ranking de vínculos porque é o corte mais grosso
+              do mesmo conjunto: primeiro a divisão em dois, depois o detalhe
+              liderança a liderança */}
+          <EstBarra data={est} loading={loading} />
 
           {/* Vínculos ocupam a largura inteira: são 38 lideranças e a leitura
               depende de compará-las entre si, não de espremê-las numa coluna */}
