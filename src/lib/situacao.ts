@@ -53,3 +53,50 @@ export function situacaoEfetiva(registro: RegistroSituacao): string | null {
     ? 'PENDENTE'
     : 'OK'
 }
+
+// ── A mesma regra, dita em PostgREST ───────────────────────────────────────
+//
+// O filtro da lista não pode olhar a coluna crua: ela ainda guarda o PENDENTE
+// velho da planilha, e filtrar por ele traria linhas que a tela mostra como
+// OK. A regra precisa valer na consulta também.
+//
+// Dá para reproduzi-la no filtro porque o banco não aceita título nem contato
+// vazios (CHECKs da migration 010): a única ausência gravável é a sentinela.
+// Se `situacaoEfetiva` mudar, esta função muda junto.
+
+/** Casa "NÃO CONSTA", "NAO CONSTA" e "NÃOCONSTA". `_` é um caractere, `*` é o % do PostgREST. */
+const SENTINELA_ILIKE = 'n_o*consta'
+
+const semTitulo   = `titulo.ilike.${SENTINELA_ILIKE}`
+const semContato  = `contato.ilike.${SENTINELA_ILIKE}`
+const temTitulo   = `titulo.not.ilike.${SENTINELA_ILIKE}`
+const temContato  = `contato.not.ilike.${SENTINELA_ILIKE}`
+
+/** Opções do filtro de situação, na ordem em que aparecem. */
+export const FILTROS_SITUACAO = [
+  { value: 'OK',        label: 'OK' },
+  { value: 'PENDENTE',  label: 'PENDENTE' },
+  { value: 'CONFERIR',  label: 'CONFERIR' },
+  { value: 'SEM',       label: 'Sem situação' },
+]
+
+/**
+ * Expressão para o `.or()` do supabase-js, ou null quando não há filtro.
+ *
+ * O OK efetivo é o OK gravado mais o PENDENTE que a regra derruba — daí ele
+ * ser o único caso com dois ramos.
+ */
+export function filtroSituacao(valor: string): string | null {
+  switch (valor) {
+    case 'OK':
+      return `situacao.ilike.OK,and(situacao.ilike.PENDENTE,or(${temTitulo},${temContato}))`
+    case 'PENDENTE':
+      return `and(situacao.ilike.PENDENTE,${semTitulo},${semContato})`
+    case 'CONFERIR':
+      return 'situacao.ilike.CONFERIR'
+    case 'SEM':
+      return 'situacao.is.null'
+    default:
+      return null
+  }
+}

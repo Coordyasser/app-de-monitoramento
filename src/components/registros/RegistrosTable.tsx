@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { Button, Card, ComboboxSelect, Input } from '@/components/ui'
 import { capitalizarLugar, ehNaoConsta, exibirTexto } from '@/lib/texto'
-import { situacaoEfetiva } from '@/lib/situacao'
+import { FILTROS_SITUACAO, filtroSituacao, situacaoEfetiva } from '@/lib/situacao'
 import { SituacaoBadge } from '@/components/registros/SituacaoBadge'
 import type { RegistroDetalhado } from '@/types/database.types'
 
@@ -17,11 +17,14 @@ interface Filtros {
   busca:    string
   cidade:   string
   vinculo:  string
+  situacao: string
   dataDe:   string
   dataAte:  string
 }
 
-const FILTROS_VAZIOS: Filtros = { busca: '', cidade: '', vinculo: '', dataDe: '', dataAte: '' }
+const FILTROS_VAZIOS: Filtros = {
+  busca: '', cidade: '', vinculo: '', situacao: '', dataDe: '', dataAte: '',
+}
 
 interface Props {
   /** Modo enxuto para o dashboard: sem filtros, sem paginação, sem export */
@@ -133,6 +136,12 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
     }
     if (f.cidade)  q = q.eq('cidade', f.cidade)
     if (f.vinculo) q = q.eq('vinculo', f.vinculo)
+
+    // A situação é derivada, então o filtro reproduz a regra em vez de
+    // comparar a coluna crua. Ver `filtroSituacao`.
+    const situacao = filtroSituacao(f.situacao)
+    if (situacao) q = q.or(situacao)
+
     if (f.dataDe)  q = q.gte('created_at', `${f.dataDe}T00:00:00`)
     if (f.dataAte) q = q.lte('created_at', `${f.dataAte}T23:59:59`)
 
@@ -269,7 +278,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
             <Filter size={13} />
             Filtros
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <Input
               placeholder="Nome, título ou contato"
               icon={<Search size={15} />}
@@ -287,6 +296,12 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
               value={filtros.vinculo}
               onChange={v => aplicar({ vinculo: v })}
               placeholder="Todos os vínculos"
+            />
+            <ComboboxSelect
+              options={FILTROS_SITUACAO}
+              value={filtros.situacao}
+              onChange={v => aplicar({ situacao: v })}
+              placeholder="Todas as situações"
             />
             <Input
               type="date"
