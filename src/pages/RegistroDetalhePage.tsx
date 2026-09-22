@@ -14,15 +14,14 @@ import {
   type LocalizacaoErrors, type LocalizacaoRegistro,
 } from '@/components/registros/LocalizacaoFields'
 import { conferirTitulo, formatarTitulo } from '@/lib/titulo'
-import { capitalizarLugar } from '@/lib/texto'
+import { SITUACOES, situacaoEfetiva } from '@/lib/situacao'
+import { SituacaoBadge } from '@/components/registros/SituacaoBadge'
+import { capitalizarLugar, ehNaoConsta, exibirTexto, ouNaoConsta, semSentinela } from '@/lib/texto'
 import type { RegistroDetalhado } from '@/types/database.types'
 
 // String literal única: o select() do Supabase infere o tipo do retorno a
 // partir dela, e uma concatenação faz a inferência cair para GenericStringError.
 const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao,bairro'
-
-/** Valores que a planilha de origem usa na coluna SITUAÇÃO. */
-const SITUACOES = ['OK', 'PENDENTE', 'CONFERIR']
 
 // ── Helpers de apresentação ────────────────────────────────────────────────
 
@@ -68,22 +67,13 @@ function Campo({ icon, label, children }: {
   )
 }
 
-function SituacaoBadge({ situacao }: { situacao: string | null }) {
-  if (!situacao) return null
-  const cores: Record<string, string> = {
-    OK:       'bg-emerald-100/70 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-    PENDENTE: 'bg-amber-100/70 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-    CONFERIR: 'bg-sky-100/70 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  }
-  const cor = cores[situacao.toUpperCase()]
-    ?? 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300'
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
-                      text-xs font-medium ${cor}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-      {situacao}
-    </span>
-  )
+/** Valor do campo, ou a falta dele em cinza — o registro pode estar parcial. */
+function ValorOuFalta({ valor }: { valor: string | null | undefined }) {
+  const texto = exibirTexto(valor)
+  const falta = ehNaoConsta(valor) || !String(valor ?? '').trim()
+  return falta
+    ? <span className="text-slate-400 dark:text-slate-500 italic">{texto}</span>
+    : <>{texto}</>
 }
 
 /** Selo de conferência do título, ao lado do valor. */
@@ -135,22 +125,29 @@ export function RegistroDetalhePage() {
   })
   const [locErros, setLocErros] = useState<LocalizacaoErrors>({})
 
+  // Aviso no formulário: o PENDENTE escolhido não sobrevive à regra.
+  const pendenteVaiVirarOk = situacao.trim().toUpperCase() === 'PENDENTE'
+    && situacaoEfetiva({ situacao, titulo, contato }) !== 'PENDENTE'
+
   const ehAdmin    = profile?.role === 'admin'
   const ehDono     = !!user && registro?.created_by === user.id
   const podeEditar = ehAdmin || ehDono
 
-  /** Repõe o formulário a partir do registro carregado. */
+  /**
+   * Repõe o formulário a partir do registro carregado. A sentinela não chega
+   * ao campo: o que falta aparece vazio, pronto para ser completado.
+   */
   const preencherFormulario = useCallback((r: RegistroDetalhado) => {
     setNome(r.nome ?? '')
-    setContato(r.contato ?? '')
-    setTitulo(r.titulo ?? '')
-    setVinculo(r.vinculo ?? '')
+    setContato(semSentinela(r.contato))
+    setTitulo(semSentinela(r.titulo))
+    setVinculo(semSentinela(r.vinculo))
     setSituacao(r.situacao ?? '')
     setObservacoes(r.observacoes ?? '')
     setLocalizacao({
-      cidade:        r.cidade ?? '',
-      zona:          r.zona ?? '',
-      secao:         r.secao ?? '',
+      cidade:        semSentinela(r.cidade),
+      zona:          semSentinela(r.zona),
+      secao:         semSentinela(r.secao),
       secao_id:      r.secao_id ?? null,
       local_votacao: r.local_votacao ?? null,
       // Sem vínculo com a base oficial, a localização foi digitada à mão
@@ -199,29 +196,49 @@ export function RegistroDetalhePage() {
     if (!registro) return
     setErro(null)
 
+    // Registro parcial é legítimo aqui também: esta é a página onde o dado
+    // que faltava chega. O campo esvaziado volta a ser "Não consta"; o campo
+    // preenchido continua tendo de caber nos CHECKs da migration 010.
     const erros: LocalizacaoErrors = {}
-    if (localizacao.cidade.trim().length < 2) erros.cidade = 'Informe a cidade'
-    if (localizacao.zona.trim().length  < 1)  erros.zona   = 'Informe a zona'
-    if (localizacao.secao.trim().length < 1)  erros.secao  = 'Informe a seção'
+    if (localizacao.cidade.trim().length > 80) erros.cidade = 'Máximo de 80 caracteres'
+    if (localizacao.zona.trim().length   > 20) erros.zona   = 'Máximo de 20 caracteres'
+    if (localizacao.secao.trim().length  > 20) erros.secao  = 'Máximo de 20 caracteres'
     setLocErros(erros)
     if (Object.keys(erros).length > 0) return
 
-    if (nome.trim().length < 3 || contato.trim().length < 8 ||
-        titulo.trim().length < 3 || vinculo.trim().length < 2) {
-      setErro('Preencha nome, contato, título e vínculo.')
+    if (nome.trim().length < 3) {
+      setErro('Informe o nome — é o único campo obrigatório.')
+      return
+    }
+    const curto = [
+      ['contato', contato, 8],
+      ['título',  titulo,  3],
+      ['vínculo', vinculo, 2],
+    ].find(([, v, min]) => {
+      const t = String(v).trim()
+      return t !== '' && t.length < Number(min)
+    })
+    if (curto) {
+      setErro(`Preencha o ${curto[0]} por completo ou deixe em branco para completar depois.`)
       return
     }
 
     setSalvando(true)
     const patch = {
       nome:        nome.trim(),
-      contato:     contato.trim(),
-      titulo:      titulo.trim(),
-      vinculo:     vinculo.trim(),
-      situacao:    situacao.trim() || null,
-      cidade:      localizacao.cidade.trim(),
-      zona:        localizacao.zona.trim(),
-      secao:       localizacao.secao.trim(),
+      contato:     ouNaoConsta(contato),
+      titulo:      ouNaoConsta(titulo),
+      vinculo:     ouNaoConsta(vinculo),
+      // A regra vale também para o que se grava daqui: PENDENTE marcado à mão
+      // com título ou contato preenchido já nasce OK.
+      situacao:    situacaoEfetiva({
+        situacao: situacao.trim() || null,
+        titulo:   titulo.trim(),
+        contato:  contato.trim(),
+      }),
+      cidade:      ouNaoConsta(localizacao.cidade),
+      zona:        ouNaoConsta(localizacao.zona),
+      secao:       ouNaoConsta(localizacao.secao),
       secao_id:    localizacao.secao_id,
       observacoes: observacoes.trim() || null,
     }
@@ -237,6 +254,8 @@ export function RegistroDetalhePage() {
       localizacao_validada: localizacao.secao_id !== null,
       updated_at:           new Date().toISOString(),
     })
+    // O formulário precisa refletir a situação de fato gravada, não a escolhida.
+    setSituacao(patch.situacao ?? '')
     setEditando(false)
     setSalvo(true)
   }
@@ -355,7 +374,7 @@ export function RegistroDetalhePage() {
         {/* ── Dados pessoais ─────────────────────────────────────── */}
         <Secao
           titulo="Dados pessoais"
-          acao={!editando ? <SituacaoBadge situacao={registro.situacao} /> : undefined}
+          acao={!editando ? <SituacaoBadge registro={registro} /> : undefined}
         >
           {editando ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -368,25 +387,38 @@ export function RegistroDetalhePage() {
                 hint={conferirTitulo(titulo).mensagem}
               />
               <Input label="Vínculo" value={vinculo} onChange={e => setVinculo(e.target.value)} />
-              <Select
-                label="Situação"
-                value={situacao}
-                onChange={e => setSituacao(e.target.value)}
-                placeholder="Sem situação"
-                options={SITUACOES.map(s => ({ value: s, label: s }))}
-              />
+              <div className="flex flex-col gap-1.5">
+                <Select
+                  label="Situação"
+                  value={situacao}
+                  onChange={e => setSituacao(e.target.value)}
+                  placeholder="Sem situação"
+                  options={SITUACOES.map(s => ({ value: s, label: s }))}
+                />
+                {pendenteVaiVirarOk && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Com título ou contato preenchido, será gravado como OK.
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Campo icon={<User size={15} />} label="Nome">{registro.nome}</Campo>
-              <Campo icon={<Phone size={15} />} label="Contato">{registro.contato}</Campo>
+              <Campo icon={<Phone size={15} />} label="Contato">
+                <ValorOuFalta valor={registro.contato} />
+              </Campo>
               <Campo icon={<UserCircle2 size={15} />} label="Título">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="tabular-nums">{formatarTitulo(registro.titulo)}</span>
+                  <span className="tabular-nums">
+                    <ValorOuFalta valor={formatarTitulo(registro.titulo)} />
+                  </span>
                   <TituloSelo valor={registro.titulo} />
                 </span>
               </Campo>
-              <Campo icon={<Link2 size={15} />} label="Vínculo">{registro.vinculo}</Campo>
+              <Campo icon={<Link2 size={15} />} label="Vínculo">
+                <ValorOuFalta valor={registro.vinculo} />
+              </Campo>
             </div>
           )}
         </Secao>
@@ -410,7 +442,14 @@ export function RegistroDetalhePage() {
             <LocalizacaoFields value={localizacao} onChange={setLocalizacao} errors={locErros} />
           ) : (
             <Campo icon={<MapPin size={15} />} label="Seção eleitoral">
-              {capitalizarLugar(registro.cidade)} · Zona {registro.zona} · Seção {registro.secao}
+              {/* Registro parcial: o nível que ainda não foi coletado não entra
+                  na linha, senão vira "Zona NÃO CONSTA · Seção NÃO CONSTA". */}
+              {[
+                ehNaoConsta(registro.cidade) ? null : capitalizarLugar(registro.cidade),
+                ehNaoConsta(registro.zona)   ? null : `Zona ${registro.zona}`,
+                ehNaoConsta(registro.secao)  ? null : `Seção ${registro.secao}`,
+              ].filter(Boolean).join(' · ')
+                || <span className="text-slate-400 dark:text-slate-500 italic">Não consta</span>}
               {/* Bairro e local só existem quando a seção veio da base oficial */}
               {registro.bairro && (
                 <span className="block text-xs text-slate-600 dark:text-slate-300 mt-0.5">

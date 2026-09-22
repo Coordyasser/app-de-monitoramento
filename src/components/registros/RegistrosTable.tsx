@@ -6,7 +6,9 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { Button, Card, ComboboxSelect, Input } from '@/components/ui'
-import { capitalizarLugar } from '@/lib/texto'
+import { capitalizarLugar, ehNaoConsta, exibirTexto } from '@/lib/texto'
+import { situacaoEfetiva } from '@/lib/situacao'
+import { SituacaoBadge } from '@/components/registros/SituacaoBadge'
 import type { RegistroDetalhado } from '@/types/database.types'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
@@ -43,6 +45,19 @@ function formatarData(iso: string | null) {
   })
 }
 
+/**
+ * "Teresina · Z1 · S185", omitindo o que ainda não foi coletado. Sem isso o
+ * registro parcial vira "Não consta · ZNÃO CONSTA · SNÃO CONSTA" na lista.
+ */
+function descreverLocal(r: RegistroDetalhado): string {
+  const partes = [
+    ehNaoConsta(r.cidade) ? null : capitalizarLugar(r.cidade),
+    ehNaoConsta(r.zona)   ? null : `Z${r.zona}`,
+    ehNaoConsta(r.secao)  ? null : `S${r.secao}`,
+  ].filter(Boolean)
+  return partes.length > 0 ? partes.join(' · ') : 'Não consta'
+}
+
 /** PostgREST interpreta vírgula e parênteses como sintaxe no filtro `or` */
 function sanitizarBusca(termo: string) {
   return termo.replace(/[,()*\\]/g, ' ').trim()
@@ -50,7 +65,7 @@ function sanitizarBusca(termo: string) {
 
 function paraCSV(linhas: RegistroDetalhado[]): string {
   const cabecalho = [
-    'Nome', 'Contato', 'Título', 'Vínculo', 'Cidade', 'Zona', 'Seção',
+    'Nome', 'Contato', 'Título', 'Vínculo', 'Situação', 'Cidade', 'Zona', 'Seção',
     'Local de votação', 'Localização validada', 'Observações', 'Registrado por', 'Data',
   ]
   const escapar = (v: unknown) => {
@@ -58,7 +73,8 @@ function paraCSV(linhas: RegistroDetalhado[]): string {
     return `"${texto.replace(/"/g, '""')}"`
   }
   const corpo = linhas.map(r => [
-    r.nome, r.contato, r.titulo, r.vinculo, capitalizarLugar(r.cidade), r.zona, r.secao,
+    r.nome, r.contato, r.titulo, r.vinculo, situacaoEfetiva(r) ?? '',
+    capitalizarLugar(r.cidade), r.zona, r.secao,
     r.local_votacao ?? '', r.localizacao_validada ? 'Sim' : 'Não',
     r.observacoes ?? '', r.agente_nome ?? '', formatarData(r.created_at),
   ].map(escapar).join(';'))
@@ -267,7 +283,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
               placeholder="Todas as cidades"
             />
             <ComboboxSelect
-              options={vinculoOpts.map(v => ({ value: v, label: v }))}
+              options={vinculoOpts.map(v => ({ value: v, label: exibirTexto(v) }))}
               value={filtros.vinculo}
               onChange={v => aplicar({ vinculo: v })}
               placeholder="Todos os vínculos"
@@ -322,6 +338,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                 <th className="px-5 py-3 font-medium">Nome</th>
                 <th className="px-5 py-3 font-medium hidden md:table-cell">Título</th>
                 <th className="px-5 py-3 font-medium hidden lg:table-cell">Vínculo</th>
+                <th className="px-5 py-3 font-medium">Situação</th>
                 <th className="px-5 py-3 font-medium">Localização</th>
                 <th className="px-5 py-3 font-medium hidden sm:table-cell">Data</th>
                 <th className="px-5 py-3 font-medium text-right sr-only">Abrir</th>
@@ -340,18 +357,24 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                       {r.nome}
                     </p>
                     <p className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-[200px]">
-                      {r.contato}
+                      {exibirTexto(r.contato)}
                     </p>
                   </td>
                   <td className="px-5 py-3 hidden md:table-cell text-slate-600 dark:text-slate-300">
-                    <span className="truncate block max-w-[180px]">{r.titulo}</span>
+                    <span className="truncate block max-w-[180px]">{exibirTexto(r.titulo)}</span>
                   </td>
                   <td className="px-5 py-3 hidden lg:table-cell">
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
-                                     bg-indigo-100/70 text-indigo-700
-                                     dark:bg-indigo-900/40 dark:text-indigo-300">
-                      {r.vinculo}
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                                     ${ehNaoConsta(r.vinculo)
+                                       ? 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400'
+                                       : 'bg-indigo-100/70 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'}`}>
+                      {exibirTexto(r.vinculo)}
                     </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    {r.situacao
+                      ? <SituacaoBadge registro={r} tamanho="sm" />
+                      : <span className="text-slate-300 dark:text-slate-600">—</span>}
                   </td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                     <span className="flex items-center gap-1.5">
@@ -359,7 +382,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
                         <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
                       )}
                       <span className="truncate max-w-[160px]">
-                        {capitalizarLugar(r.cidade)} · Z{r.zona} · S{r.secao}
+                        {descreverLocal(r)}
                       </span>
                     </span>
                   </td>

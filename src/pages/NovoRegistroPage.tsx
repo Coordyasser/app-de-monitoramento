@@ -7,6 +7,8 @@ import {
   AlertCircle, CheckCircle2, FileText, Link2, Phone, Save, User,
 } from 'lucide-react'
 import { supabase }   from '@/lib/supabase'
+import { ehNaoConsta, ouNaoConsta } from '@/lib/texto'
+import { situacaoEfetiva } from '@/lib/situacao'
 import { useAuth }    from '@/contexts/AuthContext'
 import { AppShell }   from '@/components/layout/AppShell'
 import { Button, Card, Input, PageHeader, Textarea } from '@/components/ui'
@@ -20,20 +22,27 @@ import {
 const OBS_MAX = 2000
 
 // ── Schema ─────────────────────────────────────────────────────────────────
+//
+// O levantamento em campo chega em pedaços: o agente anota o nome e o
+// telefone hoje e só descobre a seção depois. Por isso só o nome é exigido —
+// o resto pode ficar em branco e ser completado na página do registro.
+//
+// Em branco não significa "qualquer coisa serve": o campo preenchido ainda
+// precisa caber nos CHECKs da migration 010, senão o banco recusa o insert
+// inteiro. Daí o mínimo valer apenas quando há texto.
+const opcional = (min: number, max: number, curto: string) =>
+  z.string().trim()
+    .max(max, `Máximo de ${max} caracteres`)
+    .refine(v => v === '' || v.length >= min, curto)
+    .optional()
 
 const schema = z.object({
   nome: z.string().trim()
     .min(3,   'Informe o nome completo')
     .max(120, 'Máximo de 120 caracteres'),
-  contato: z.string().trim()
-    .min(8,  'Informe um telefone ou e-mail válido')
-    .max(60, 'Máximo de 60 caracteres'),
-  titulo: z.string().trim()
-    .min(3,   'Informe um título para o registro')
-    .max(120, 'Máximo de 120 caracteres'),
-  vinculo: z.string().trim()
-    .min(2,  'Informe o vínculo')
-    .max(80, 'Máximo de 80 caracteres'),
+  contato: opcional(8, 60, 'Telefone ou e-mail curto demais — deixe em branco se ainda não tem'),
+  titulo:  opcional(3, 120, 'Título curto demais — deixe em branco se ainda não tem'),
+  vinculo: opcional(2, 80,  'Vínculo curto demais — deixe em branco se ainda não tem'),
   observacoes: z.string().trim().max(OBS_MAX, `Máximo de ${OBS_MAX} caracteres`).optional(),
 })
 type FormValues = z.infer<typeof schema>
@@ -43,12 +52,14 @@ const VALORES_INICIAIS: FormValues = {
 }
 
 // ── Validação da localização ───────────────────────────────────────────────
-
+//
+// Mesma lógica: localização vazia entra como "Não consta". O que não pode é
+// estourar o tamanho da coluna.
 function validarLocalizacao(loc: LocalizacaoRegistro): LocalizacaoErrors {
   const erros: LocalizacaoErrors = {}
-  if (loc.cidade.trim().length < 2) erros.cidade = 'Informe a cidade'
-  if (loc.zona.trim().length  < 1)  erros.zona   = 'Informe a zona'
-  if (loc.secao.trim().length < 1)  erros.secao  = 'Informe a seção'
+  if (loc.cidade.trim().length > 80) erros.cidade = 'Máximo de 80 caracteres'
+  if (loc.zona.trim().length   > 20) erros.zona   = 'Máximo de 20 caracteres'
+  if (loc.secao.trim().length  > 20) erros.secao  = 'Máximo de 20 caracteres'
   return erros
 }
 
@@ -78,12 +89,23 @@ export function NovoRegistroPage() {
   const observacoesValue = watch('observacoes') ?? ''
 
   // Sugestões de vínculo já usados pela equipe — o campo é texto livre,
-  // a lista só ajuda a convergir na mesma grafia.
+  // a lista só ajuda a convergir na mesma grafia. A sentinela sai fora:
+  // "Não consta" é ausência de vínculo, não um vínculo a sugerir.
   useEffect(() => {
     supabase.rpc('get_vinculos_sugeridos', { p_limit: 30 }).then(({ data }) => {
-      setVinculosUsados((data ?? []).map(r => r.vinculo))
+      setVinculosUsados((data ?? []).map(r => r.vinculo).filter(v => !ehNaoConsta(v)))
     })
   }, [])
+
+  // Aviso do que entra como "Não consta" — o agente salva sabendo o que falta.
+  const emBranco = [
+    ['Contato', watch('contato')],
+    ['Título',  watch('titulo')],
+    ['Vínculo', watch('vinculo')],
+    ['Cidade',  localizacao.cidade],
+    ['Zona',    localizacao.zona],
+    ['Seção',   localizacao.secao],
+  ].filter(([, v]) => !String(v ?? '').trim()).map(([rotulo]) => rotulo)
 
   // ── Submit ───────────────────────────────────────────────────────────
 
@@ -100,17 +122,25 @@ export function NovoRegistroPage() {
       return
     }
 
-    const { error } = await supabase.from('registros').insert({
+    const registro = {
       created_by:  user.id,
       nome:        values.nome.trim(),
-      contato:     values.contato.trim(),
-      titulo:      values.titulo.trim(),
-      vinculo:     values.vinculo.trim(),
-      cidade:      localizacao.cidade.trim(),
-      zona:        localizacao.zona.trim(),
-      secao:       localizacao.secao.trim(),
+      contato:     ouNaoConsta(values.contato),
+      titulo:      ouNaoConsta(values.titulo),
+      vinculo:     ouNaoConsta(values.vinculo),
+      cidade:      ouNaoConsta(localizacao.cidade),
+      zona:        ouNaoConsta(localizacao.zona),
+      secao:       ouNaoConsta(localizacao.secao),
       secao_id:    localizacao.secao_id,
       observacoes: values.observacoes?.trim() || null,
+    }
+
+    const { error } = await supabase.from('registros').insert({
+      ...registro,
+      // Situação pela mesma regra do resto do app: sem título e sem contato o
+      // registro nasce PENDENTE, para reaparecer na triagem de quem for
+      // completá-lo. Com um dos dois em mãos, já é utilizável.
+      situacao: situacaoEfetiva({ ...registro, situacao: 'PENDENTE' }),
     })
 
     if (error) {
@@ -136,7 +166,7 @@ export function NovoRegistroPage() {
       <div className="max-w-3xl mx-auto">
         <PageHeader
           title="Novo registro"
-          subtitle="Consolide aqui a informação levantada em campo"
+          subtitle="Consolide aqui a informação levantada em campo — só o nome é obrigatório"
           back="/registros"
         />
 
@@ -173,7 +203,7 @@ export function NovoRegistroPage() {
                   placeholder="Telefone ou e-mail"
                   autoComplete="off"
                   icon={<Phone size={15} />}
-                  hint="Usado para identificar registros repetidos"
+                  hint="Opcional — usado para identificar registros repetidos"
                   error={errors.contato?.message}
                   {...register('contato')}
                 />
@@ -185,6 +215,7 @@ export function NovoRegistroPage() {
                   placeholder="Ex.: Coordenador de bairro"
                   autoComplete="off"
                   icon={<FileText size={15} />}
+                  hint="Opcional"
                   error={errors.titulo?.message}
                   {...register('titulo')}
                 />
@@ -196,8 +227,8 @@ export function NovoRegistroPage() {
                     list="vinculos-sugeridos"
                     icon={<Link2 size={15} />}
                     hint={vinculosUsados.length > 0
-                      ? 'Campo livre — a lista mostra vínculos já usados pela equipe'
-                      : 'Campo livre'}
+                      ? 'Opcional, campo livre — a lista mostra vínculos já usados pela equipe'
+                      : 'Opcional, campo livre'}
                     error={errors.vinculo?.message}
                     {...register('vinculo')}
                   />
@@ -263,6 +294,14 @@ export function NovoRegistroPage() {
                 Salvar e adicionar outro
               </Button>
             </div>
+            {emBranco.length > 0 && (
+              <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                {emBranco.join(', ')} {emBranco.length === 1 ? 'fica' : 'ficam'} como
+                {' '}"Não consta" e {emBranco.length === 1 ? 'pode' : 'podem'} ser
+                {' '}{emBranco.length === 1 ? 'completado' : 'completados'} depois,
+                {' '}na página do registro.
+              </p>
+            )}
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
               "Salvar e adicionar outro" mantém a localização preenchida para o próximo registro.
             </p>
