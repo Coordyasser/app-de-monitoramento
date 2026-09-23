@@ -11,7 +11,17 @@ node scripts/sincronizar-lista-nominal.mjs --arquivo "C:/Users/Pichau/Downloads/
 
 # aplica
 node scripts/sincronizar-lista-nominal.mjs --arquivo "C:/Users/Pichau/Downloads/LISTA NOMINAL.xlsx"
+
+# só insere quem é novo; quem já está no banco não é tocado
+node scripts/sincronizar-lista-nominal.mjs --arquivo "C:/Users/Pichau/Downloads/LISTA NOMINAL.xlsx" --somente-novos
 ```
+
+> **Hoje o modo certo é `--somente-novos`.** Correções passaram a ser feitas
+> direto no sistema e não voltam para a planilha, então ela está divergente
+> nos registros antigos. Sincronizar tudo desfaria essas correções (vínculo,
+> situação, telefone…). Nesse modo, as divergências só aparecem como
+> contagem, o `origem_id` de quem já existe não muda, e só o vínculo dos
+> registros novos entra no cadastro.
 
 Aceita `.xlsx` e `.csv`. **Prefira `.xlsx`:** ele guarda o valor numérico em
 precisão total, enquanto o CSV só carrega o texto que o Excel exibiu — se a
@@ -115,7 +125,21 @@ contra `secoes_eleitorais_pi`. Esse par identifica um único município em
 cada seção pertence a um só local de votação. Resolvido o par, o registro ainda
 recebe o `secao_id` oficial, que alimenta `localizacao_validada` na view.
 
-Zona isolada não serve: só 9 das 74 zonas do Piauí cobrem um município único.
+Quando o par não existe na base (o TRE só lista seção que tem local de
+votação; seção agregada ou extinta some), vale o mesmo plano B do app
+(migration 017): se a zona cobre **um único** município, a cidade vem dela,
+sem `secao_id`. Zona partilhada (a 97 cobre Teresina e Nazária) fica
+`NÃO CONSTA` e vai para os avisos.
+
+Zona isolada não é critério principal: só 9 das 74 zonas do Piauí cobrem um
+município único.
+
+## Coluna EST
+
+Aceita `Ana` ou `Gil`, sem diferenciar maiúsculas de minúsculas. Qualquer outro valor fica em branco
+(`NULL`) e vai para os avisos. Célula vazia **não apaga** um Est marcado pelo
+app: é o caso normal, porque a maior parte é preenchida por lá, e o script só
+informa quantos foram mantidos, sem um aviso por linha.
 O número do título também não ajuda — ele codifica a UF, não o município.
 
 Sem zona/seção, a cidade fica `NÃO CONSTA`. Campo sem informação vira esse

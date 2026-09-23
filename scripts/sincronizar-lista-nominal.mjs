@@ -14,6 +14,7 @@
 // Uso:
 //   node scripts/sincronizar-lista-nominal.mjs --arquivo "C:/.../LISTA NOMINAL.xlsx"
 //   node scripts/sincronizar-lista-nominal.mjs --arquivo "..." --dry-run
+//   node scripts/sincronizar-lista-nominal.mjs --arquivo "..." --somente-novos
 // =============================================================
 
 import fs from 'node:fs';
@@ -33,6 +34,10 @@ const opcao = (nome, padrao = null) => {
   return i >= 0 && args[i + 1] ? args[i + 1] : padrao;
 };
 const dryRun  = args.includes('--dry-run');
+// A planilha deixou de acompanhar o sistema: correções são feitas direto no
+// app e não voltam para ela. Nesse modo ela só traz gente nova — quem já está
+// no banco nunca é tocado, nem mesmo o origem_id.
+const somenteNovos = args.includes('--somente-novos');
 const arquivo = opcao('--arquivo');
 if (!arquivo) {
   console.error('Faltou --arquivo "caminho/para/LISTA NOMINAL.xlsx"');
@@ -113,6 +118,7 @@ const COL = {
   contato:     acharCol('TELEFONE / CELULAR', 'TELEFONE', 'CONTATO'),
   situacao:    acharCol('SITUAÇÃO', 'SITUACAO'),
   observacoes: acharCol('OBSERVAÇÕES', 'OBSERVACOES'),
+  est:         acharCol('EST'),
 };
 const faltando = Object.entries(COL).filter(([, i]) => i < 0).map(([k]) => k);
 if (faltando.length) {
@@ -139,6 +145,22 @@ for (const s of secoes) {
   if (!porParZonaSecao.has(chave)) porParZonaSecao.set(chave, []);
   porParZonaSecao.get(chave).push(s);
 }
+
+// Plano B, o mesmo do app (migration 017): o dataset do TRE só lista seção que
+// tem local de votação, então seção agregada ou extinta some dele — a zona
+// 97 tem 176 números ausentes. A zona continua amarrada aos mesmos
+// municípios; quando for um só, a cidade vem dela, sem secao_id, porque a
+// seção em si não foi confirmada.
+const municipiosPorZona = new Map();
+for (const s of secoes) {
+  const z = semZeros(s.zona);
+  if (!municipiosPorZona.has(z)) municipiosPorZona.set(z, new Set());
+  municipiosPorZona.get(z).add(s.municipio);
+}
+
+// Est tem domínio fechado (CHECK da migration 016). Em branco é NULL, não a
+// sentinela NÃO CONSTA, que o CHECK recusaria.
+const EST_VALIDOS = new Map([['ana', 'Ana'], ['gil', 'Gil']]);
 
 // ── 3. transformação ─────────────────────────────────────────
 const avisos = [];
@@ -171,7 +193,15 @@ linhas.forEach((linha, i) => {
   if (zona !== NAO_CONSTA && secao !== NAO_CONSTA) {
     const candidatas = porParZonaSecao.get(`${zona}|${secao}`);
     if (!candidatas) {
-      avisar(origemId, `zona ${zona} / seção ${secao} não existe na base do TRE-PI`);
+      const daZona = [...(municipiosPorZona.get(zona) ?? [])];
+      if (daZona.length === 1) {
+        cidade = daZona[0];
+        avisar(origemId, `zona ${zona} / seção ${secao} não existe na base do TRE-PI — cidade deduzida da zona (${cidade})`);
+      } else if (daZona.length > 1) {
+        avisar(origemId, `zona ${zona} / seção ${secao} não existe na base do TRE-PI e a zona cobre ${daZona.join(', ')} — cidade não deduzida`);
+      } else {
+        avisar(origemId, `zona ${zona} não existe na base do TRE-PI`);
+      }
     } else {
       const municipios = [...new Set(candidatas.map(c => c.municipio))];
       if (municipios.length === 1) {
@@ -191,6 +221,9 @@ linhas.forEach((linha, i) => {
 
   const observacoes = pega(COL.observacoes);
   const situacao    = pega(COL.situacao);
+  const estBruto    = pega(COL.est);
+  const est         = EST_VALIDOS.get(estBruto.toLowerCase()) ?? null;
+  if (estBruto && !est) avisar(origemId, `Est inválido: ${JSON.stringify(estBruto)} — só Ana ou Gil; ficou em branco`);
 
   daPlanilha.set(origemId, {
     origem_id:   origemId,
@@ -204,6 +237,7 @@ linhas.forEach((linha, i) => {
     secao_id:    secaoId,
     observacoes: observacoes ? observacoes.slice(0, 2000) : null,
     situacao:    situacao ? situacao.slice(0, 40) : null,
+    est,
   });
 });
 
@@ -253,7 +287,7 @@ console.log(`  duplicidade por título: ${dupTitulo.length} grupo(s)` +
 //   2ª passada  nome + vínculo, para quem ainda não tem título
 // O origem_id continua gravado, mas como dado de rastreio, não como chave.
 console.log('Comparando com o banco…');
-const CAMPOS = ['nome', 'contato', 'titulo', 'vinculo', 'cidade', 'zona', 'secao', 'secao_id', 'observacoes', 'situacao', 'origem_id'];
+const CAMPOS = ['nome', 'contato', 'titulo', 'vinculo', 'cidade', 'zona', 'secao', 'secao_id', 'observacoes', 'situacao', 'est', 'origem_id'];
 const existentes = await buscarTudo('registros', ['id', ...CAMPOS].join(','));
 
 const temTitulo = r => /^\d{12}$/.test(r.titulo ?? '');
@@ -307,6 +341,7 @@ const casar = (novo) => {
 // para NÃO CONSTA — foi assim que um título digitado no app quase se perdeu.
 const LOCALIZACAO = ['cidade', 'zona', 'secao', 'secao_id'];
 const novos = [], alterados = [];
+let estMantidos = 0;
 
 for (const [origemId, novo] of daPlanilha) {
   const atual = casar(novo);
@@ -325,6 +360,10 @@ for (const [origemId, novo] of daPlanilha) {
     avisos.push({ linha: '', origem_id: origemId,
       aviso: `${c}: planilha diz NÃO CONSTA, banco tem ${JSON.stringify(atual[c])} — mantido o do banco` });
   }
+  // Est em branco na planilha (NULL, não NÃO CONSTA) segue a mesma regra, mas
+  // sem aviso: a maior parte do Est é marcada pelo app e a planilha nem
+  // acompanha, então esse é o caso normal, não algo a conferir.
+  if (novo.est === null && atual.est) { preservar.add('est'); estMantidos++; }
 
   const mudou = CAMPOS.filter(c => !preservar.has(c) && (atual[c] ?? null) !== (novo[c] ?? null));
   if (mudou.length) {
@@ -338,6 +377,21 @@ for (const [origemId, novo] of daPlanilha) {
 }
 const sumiram = existentes.filter(r => !usados.has(r.id)).map(r => r.origem_id ?? r.id);
 
+let ignorados = [];
+if (somenteNovos) {
+  ignorados = alterados.splice(0);
+  // Sem poder liberar o origem_id de quem já está no banco, um novo que
+  // reivindique um ID ocupado (planilha renumerada) entra sem ele — o
+  // origem_id é só rastreio, e o índice único recusaria a inserção.
+  const ocupados = new Set(existentes.map(r => r.origem_id).filter(Boolean));
+  for (const n of novos) {
+    if (!ocupados.has(n.origem_id)) continue;
+    avisos.push({ linha: '', origem_id: n.origem_id,
+      aviso: `origem_id já pertence a outro registro no banco — inserido sem origem_id (${n.nome})` });
+    n.origem_id = null;
+  }
+}
+
 console.log(`\n  novos:        ${novos.length}`);
 console.log(`  atualizados:  ${alterados.length}`);
 if (alterados.length) {
@@ -347,8 +401,20 @@ if (alterados.length) {
   for (const a of alterados) for (const c of a.campos) porCampo[c] = (porCampo[c] ?? 0) + 1;
   console.log('    por campo: ' + Object.entries(porCampo).sort((x, y) => y[1] - x[1])
     .map(([c, n]) => `${c}=${n}`).join('  '));
+  if (dryRun) {
+    const porId = new Map(existentes.map(r => [r.id, r]));
+    for (const a of alterados) {
+      const antes = porId.get(a.id);
+      console.log(`    ${a.origem_id}: ` + a.campos
+        .map(c => `${c} ${JSON.stringify(antes[c])} → ${JSON.stringify(a.dados[c])}`).join('; '));
+    }
+  }
 }
-console.log(`  sem mudança:  ${daPlanilha.size - novos.length - alterados.length}`);
+if (estMantidos) console.log(`  Est em branco na planilha, mantido o do banco: ${estMantidos}`);
+if (somenteNovos) {
+  console.log(`  divergências com o banco, ignoradas (--somente-novos): ${ignorados.length}`);
+}
+console.log(`  sem mudança:  ${daPlanilha.size - novos.length - alterados.length - ignorados.length}`);
 console.log(`  no banco mas fora da planilha: ${sumiram.length}` +
   (sumiram.length ? ` (${sumiram.slice(0, 10).join(', ')}${sumiram.length > 10 ? '…' : ''}) — preservados` : ''));
 
@@ -385,7 +451,7 @@ if (dryRun) {
 // todos os IDs que vão trocar de dono — inclusive os reivindicados pelos
 // registros novos.
 const idsReivindicados = new Set(daPlanilha.keys());
-const liberar = [
+const liberar = somenteNovos ? [] : [
   ...alterados.filter(a => a.campos.includes('origem_id')).map(a => a.id),
   // Quem saiu da planilha mas segura um ID que agora é de outra pessoa.
   ...existentes.filter(r => !usados.has(r.id) && r.origem_id && idsReivindicados.has(r.origem_id))
@@ -446,7 +512,9 @@ const jaCadastrados = new Set(
   (await buscarTudo('vinculos', 'nome')).map(v => normVinculo(v.nome)),
 );
 const vinculosNovos = [...new Map(
-  [...daPlanilha.values()]
+  // Em --somente-novos, só o vínculo de quem entrou agora: um nome antigo que
+  // a planilha ainda traz e o sistema já corrigiu não pode voltar ao cadastro.
+  (somenteNovos ? novos : [...daPlanilha.values()])
     .map(r => r.vinculo)
     .filter(v => v && v !== NAO_CONSTA && v.length >= 2 && v.length <= 80)
     .filter(v => !jaCadastrados.has(normVinculo(v)))
