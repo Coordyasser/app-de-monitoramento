@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Search } from 'lucide-react'
 import { ComboboxSelect, Input } from '@/components/ui'
 import { capitalizarLugar, exibirTexto } from '@/lib/texto'
@@ -25,6 +26,11 @@ export function FiltrosCampos({
 }: Props) {
   const rotulo = (texto: string) => comRotulos ? texto : undefined
 
+  // Listas estáveis: o ComboboxSelect refaz trabalho quando `options` muda,
+  // e sem isso elas seriam recriadas a cada tecla digitada na busca
+  const cidades  = useMemo(() => cidadeOpts.map(c => ({ value: c, label: capitalizarLugar(c) })), [cidadeOpts])
+  const vinculos = useMemo(() => vinculoOpts.map(v => ({ value: v, label: exibirTexto(v) })), [vinculoOpts])
+
   return (
     <div className={className}>
       <Input
@@ -36,14 +42,14 @@ export function FiltrosCampos({
       />
       <ComboboxSelect
         label={rotulo('Cidade')}
-        options={cidadeOpts.map(c => ({ value: c, label: capitalizarLugar(c) }))}
+        options={cidades}
         value={filtros.cidade}
         onChange={v => onChange({ cidade: v })}
         placeholder="Todas as cidades"
       />
       <ComboboxSelect
         label={rotulo('Vínculo')}
-        options={vinculoOpts.map(v => ({ value: v, label: exibirTexto(v) }))}
+        options={vinculos}
         value={filtros.vinculo}
         onChange={v => onChange({ vinculo: v })}
         placeholder="Todos os vínculos"

@@ -7,7 +7,7 @@ interface ModalProps {
   title?:     string
   children:   ReactNode
   maxWidth?:  'sm' | 'md' | 'lg' | 'xl'
-  /** Fundo quase opaco no lugar do vidro, para formulários com muitos campos */
+  /** Fundo opaco e sem desfoque, para formulários com muitos campos */
   solido?:    boolean
 }
 
@@ -33,15 +33,16 @@ export function Modal({ open, onClose, title, children, maxWidth = 'md', solido 
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
       onClick={onClose}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+      {/* Backdrop — o modo sólido dispensa o desfoque: sobre uma página cheia
+          de cards de vidro, desfocar a tela inteira pesa a cada repintura */}
+      <div className={`absolute inset-0 ${solido ? 'bg-slate-900/50' : 'bg-slate-900/40 backdrop-blur-sm'}`} />
 
       {/* Panel */}
       <div
         className={[
           'relative w-full rounded-2xl p-6 shadow-2xl animate-slide-up',
           solido
-            ? 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10'
+            ? 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10'
             : 'glass',
           'max-h-[90vh] overflow-y-auto',
           widthClasses[maxWidth],
