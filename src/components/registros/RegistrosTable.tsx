@@ -1,32 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertCircle, ChevronLeft, ChevronRight, Download, Filter,
-  Loader2, MapPin, RotateCcw, Search, ShieldCheck,
+  Loader2, MapPin, RotateCcw, ShieldCheck,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { Button, Card, ComboboxSelect, Input } from '@/components/ui'
-import { capitalizarLugar, ehNaoConsta, exibirTexto } from '@/lib/texto'
-import { FILTROS_SITUACAO, filtroSituacao, situacaoEfetiva } from '@/lib/situacao'
-import { FILTROS_EST, SEM_EST } from '@/lib/est'
+import { Button, Card } from '@/components/ui'
+import { ehNaoConsta, exibirTexto } from '@/lib/texto'
 import { SituacaoBadge } from '@/components/registros/SituacaoBadge'
+import { FiltrosCampos } from '@/components/registros/FiltrosCampos'
+import { ExportarModal } from '@/components/registros/ExportarModal'
+import {
+  FILTROS_VAZIOS, descreverLocal, formatarData, montarQuery, type Filtros,
+} from '@/components/registros/consulta'
 import type { RegistroDetalhado } from '@/types/database.types'
-
-// ── Tipos ──────────────────────────────────────────────────────────────────
-
-interface Filtros {
-  busca:    string
-  cidade:   string
-  vinculo:  string
-  situacao: string
-  est:      string
-  dataDe:   string
-  dataAte:  string
-}
-
-const FILTROS_VAZIOS: Filtros = {
-  busca: '', cidade: '', vinculo: '', situacao: '', est: '', dataDe: '', dataAte: '',
-}
 
 interface Props {
   /** Modo enxuto para o dashboard: sem filtros, sem paginação, sem export */
@@ -35,68 +22,7 @@ interface Props {
   limit?:   number
 }
 
-const PAGE_SIZE   = 12
-const EXPORT_MAX  = 5000
-
-const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,observacoes,secao_id,created_by,created_at,updated_at,agente_nome,local_votacao,localizacao_validada,origem_id,situacao,est'
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function formatarData(iso: string | null) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
-
-/**
- * "Teresina · Z1 · S185", omitindo o que ainda não foi coletado. Sem isso o
- * registro parcial vira "Não consta · ZNÃO CONSTA · SNÃO CONSTA" na lista.
- */
-function descreverLocal(r: RegistroDetalhado): string {
-  const partes = [
-    ehNaoConsta(r.cidade) ? null : capitalizarLugar(r.cidade),
-    ehNaoConsta(r.zona)   ? null : `Z${r.zona}`,
-    ehNaoConsta(r.secao)  ? null : `S${r.secao}`,
-  ].filter(Boolean)
-  return partes.length > 0 ? partes.join(' · ') : 'Não consta'
-}
-
-/** PostgREST interpreta vírgula e parênteses como sintaxe no filtro `or` */
-function sanitizarBusca(termo: string) {
-  return termo.replace(/[,()*\\]/g, ' ').trim()
-}
-
-function paraCSV(linhas: RegistroDetalhado[]): string {
-  const cabecalho = [
-    'Nome', 'Contato', 'Título', 'Vínculo', 'Situação', 'Est', 'Cidade', 'Zona', 'Seção',
-    'Local de votação', 'Localização validada', 'Observações', 'Registrado por', 'Data',
-  ]
-  const escapar = (v: unknown) => {
-    const texto = v === null || v === undefined ? '' : String(v)
-    return `"${texto.replace(/"/g, '""')}"`
-  }
-  const corpo = linhas.map(r => [
-    r.nome, r.contato, r.titulo, r.vinculo, situacaoEfetiva(r) ?? '', r.est ?? '',
-    capitalizarLugar(r.cidade), r.zona, r.secao,
-    r.local_votacao ?? '', r.localizacao_validada ? 'Sim' : 'Não',
-    r.observacoes ?? '', r.agente_nome ?? '', formatarData(r.created_at),
-  ].map(escapar).join(';'))
-
-  return [cabecalho.map(escapar).join(';'), ...corpo].join('\r\n')
-}
-
-function baixarCSV(conteudo: string) {
-  // BOM para o Excel reconhecer o acento
-  const blob = new Blob(['﻿' + conteudo], { type: 'text/csv;charset=utf-8;' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
-  a.download = `registros-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
+const PAGE_SIZE = 12
 
 // ── Componente ─────────────────────────────────────────────────────────────
 
@@ -108,7 +34,8 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
   const [pagina,   setPagina]   = useState(0)
   const [loading,  setLoading]  = useState(true)
   const [erro,     setErro]     = useState<string | null>(null)
-  const [exportando, setExportando] = useState(false)
+  // Foto dos filtros ao abrir o popup de exportação; null = fechado
+  const [exportIniciais, setExportIniciais] = useState<Filtros | null>(null)
 
   const [filtros,      setFiltros]      = useState<Filtros>(FILTROS_VAZIOS)
   const [buscaInput,   setBuscaInput]   = useState('')
@@ -123,37 +50,6 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
 
   const totalPaginas = Math.ceil(total / PAGE_SIZE)
   const temFiltro    = Object.values(filtros).some(Boolean)
-
-  // ── Query base com filtros aplicados ─────────────────────────────────
-
-  const montarQuery = useCallback((f: Filtros, contar: boolean) => {
-    let q = supabase
-      .from('vw_registros_detalhados')
-      .select(COLUNAS, contar ? { count: 'exact' } : undefined)
-      .order('created_at', { ascending: false })
-
-    const termo = sanitizarBusca(f.busca)
-    if (termo) {
-      q = q.or(`nome.ilike.%${termo}%,titulo.ilike.%${termo}%,contato.ilike.%${termo}%`)
-    }
-    if (f.cidade)  q = q.eq('cidade', f.cidade)
-    if (f.vinculo) q = q.eq('vinculo', f.vinculo)
-
-    // A situação é derivada, então o filtro reproduz a regra em vez de
-    // comparar a coluna crua. Ver `filtroSituacao`.
-    const situacao = filtroSituacao(f.situacao)
-    if (situacao) q = q.or(situacao)
-
-    // Est é coluna de verdade, com domínio fechado: comparação direta. Em
-    // branco é NULL, que `eq` nunca casaria.
-    if (f.est === SEM_EST)  q = q.is('est', null)
-    else if (f.est)         q = q.eq('est', f.est)
-
-    if (f.dataDe)  q = q.gte('created_at', `${f.dataDe}T00:00:00`)
-    if (f.dataAte) q = q.lte('created_at', `${f.dataAte}T23:59:59`)
-
-    return q
-  }, [])
 
   // ── Busca das linhas ──────────────────────────────────────────────────
 
@@ -170,7 +66,7 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
     setLinhas((data as RegistroDetalhado[]) ?? [])
     setTotal(count ?? data?.length ?? 0)
     setLoading(false)
-  }, [compact, limit, montarQuery])
+  }, [compact, limit])
 
   useEffect(() => { buscar(pagina, filtros) }, [buscar, pagina, filtros])
 
@@ -221,13 +117,12 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
     setPagina(0)
   }
 
-  async function exportar() {
-    setExportando(true)
-    const { data, error } = await montarQuery(filtros, false).range(0, EXPORT_MAX - 1)
-    setExportando(false)
-    if (error) { setErro(`Falha ao exportar: ${error.message}`); return }
-    baixarCSV(paraCSV((data as RegistroDetalhado[]) ?? []))
+  // A busca digitada entra mesmo que o debounce ainda não tenha aplicado
+  function abrirExportacao() {
+    setExportIniciais({ ...filtros, busca: buscaInput })
   }
+
+  const fecharExportacao = useCallback(() => setExportIniciais(null), [])
 
   // ── Render ───────────────────────────────────────────────────────────
 
@@ -267,11 +162,9 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
               variant="secondary"
               size="sm"
               icon={<Download size={14} />}
-              loading={exportando}
-              onClick={exportar}
-              disabled={total === 0}
+              onClick={abrirExportacao}
             >
-              Exportar CSV
+              Exportar
             </Button>
           </div>
         )}
@@ -285,49 +178,25 @@ export function RegistrosTable({ compact = false, limit = 8 }: Props) {
             <Filter size={13} />
             Filtros
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <Input
-              placeholder="Nome, título ou contato"
-              icon={<Search size={15} />}
-              value={buscaInput}
-              onChange={e => setBuscaInput(e.target.value)}
-            />
-            <ComboboxSelect
-              options={cidadeOpts.map(c => ({ value: c, label: capitalizarLugar(c) }))}
-              value={filtros.cidade}
-              onChange={v => aplicar({ cidade: v })}
-              placeholder="Todas as cidades"
-            />
-            <ComboboxSelect
-              options={vinculoOpts.map(v => ({ value: v, label: exibirTexto(v) }))}
-              value={filtros.vinculo}
-              onChange={v => aplicar({ vinculo: v })}
-              placeholder="Todos os vínculos"
-            />
-            <ComboboxSelect
-              options={FILTROS_SITUACAO}
-              value={filtros.situacao}
-              onChange={v => aplicar({ situacao: v })}
-              placeholder="Todas as situações"
-            />
-            <ComboboxSelect
-              options={FILTROS_EST}
-              value={filtros.est}
-              onChange={v => aplicar({ est: v })}
-              placeholder="Todos os Est"
-            />
-            <Input
-              type="date"
-              value={filtros.dataDe}
-              onChange={e => aplicar({ dataDe: e.target.value })}
-            />
-            <Input
-              type="date"
-              value={filtros.dataAte}
-              onChange={e => aplicar({ dataAte: e.target.value })}
-            />
-          </div>
+          <FiltrosCampos
+            filtros={filtros}
+            onChange={aplicar}
+            busca={buscaInput}
+            onBusca={setBuscaInput}
+            cidadeOpts={cidadeOpts}
+            vinculoOpts={vinculoOpts}
+          />
         </div>
+      )}
+
+      {!compact && (
+        <ExportarModal
+          open={exportIniciais !== null}
+          onClose={fecharExportacao}
+          iniciais={exportIniciais ?? FILTROS_VAZIOS}
+          cidadeOpts={cidadeOpts}
+          vinculoOpts={vinculoOpts}
+        />
       )}
 
       {/* Erro */}
