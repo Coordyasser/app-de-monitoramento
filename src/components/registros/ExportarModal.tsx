@@ -72,7 +72,7 @@ export function ExportarModal({ open, onClose, iniciais, cidadeOpts, vinculoOpts
   const vazio = total === 0
 
   return (
-    <Modal open={open} onClose={onClose} title="Exportar registros" maxWidth="xl">
+    <Modal open={open} onClose={onClose} title="Exportar registros" maxWidth="lg" solido>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
         Escolha os filtros do que vai para o arquivo. Eles começam iguais aos da lista.
       </p>

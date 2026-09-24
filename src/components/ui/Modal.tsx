@@ -7,6 +7,8 @@ interface ModalProps {
   title?:     string
   children:   ReactNode
   maxWidth?:  'sm' | 'md' | 'lg' | 'xl'
+  /** Fundo quase opaco no lugar do vidro, para formulários com muitos campos */
+  solido?:    boolean
 }
 
 const widthClasses = {
@@ -16,7 +18,7 @@ const widthClasses = {
   xl: 'max-w-2xl',
 }
 
-export function Modal({ open, onClose, title, children, maxWidth = 'md' }: ModalProps) {
+export function Modal({ open, onClose, title, children, maxWidth = 'md', solido = false }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -37,7 +39,10 @@ export function Modal({ open, onClose, title, children, maxWidth = 'md' }: Modal
       {/* Panel */}
       <div
         className={[
-          'relative w-full glass rounded-2xl p-6 shadow-2xl animate-slide-up',
+          'relative w-full rounded-2xl p-6 shadow-2xl animate-slide-up',
+          solido
+            ? 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10'
+            : 'glass',
           'max-h-[90vh] overflow-y-auto',
           widthClasses[maxWidth],
         ].join(' ')}
