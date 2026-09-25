@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom'
 import { FileDown, Loader2, Plus } from 'lucide-react'
 import { PDF_IGNORAR } from './exportarPdf'
 
-export type Periodo = 7 | 30 | 90
+export type Periodo = 7 | 15 | 30
 export type Aba     = 'visao' | 'equipe'
 
-const PERIODOS: Periodo[] = [7, 30, 90]
+const PERIODOS: Periodo[] = [7, 15, 30]
 
 interface Props {
   atualizadoEm: Date | null
