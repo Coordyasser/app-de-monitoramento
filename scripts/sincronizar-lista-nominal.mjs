@@ -380,6 +380,21 @@ const sumiram = existentes.filter(r => !usados.has(r.id)).map(r => r.origem_id ?
 let ignorados = [];
 if (somenteNovos) {
   ignorados = alterados.splice(0);
+  // Linha repetida na planilha (a mesma pessoa digitada de novo mais abaixo)
+  // não casa: o registro do banco já foi usado pela primeira ocorrência, e a
+  // segunda cairia como nova. Aqui só entra quem nem o título nem o nome
+  // aparecem no banco.
+  const nomesNoBanco = new Set(existentes.map(r => chaveNome(r.nome)).filter(Boolean));
+  for (let i = novos.length - 1; i >= 0; i--) {
+    const n = novos[i];
+    const motivo = temTitulo(n) && porTitulo.has(n.titulo) ? `título ${n.titulo}`
+                 : nomesNoBanco.has(chaveNome(n.nome)) ? 'nome' : null;
+    if (!motivo) continue;
+    avisos.push({ linha: '', origem_id: n.origem_id,
+      aviso: `${motivo} já existe no banco — não inserido (${n.nome})` });
+    console.log(`  já no banco (${motivo}), não inserido: ${n.origem_id} ${n.nome}`);
+    novos.splice(i, 1);
+  }
   // Sem poder liberar o origem_id de quem já está no banco, um novo que
   // reivindique um ID ocupado (planilha renumerada) entra sem ele — o
   // origem_id é só rastreio, e o índice único recusaria a inserção.

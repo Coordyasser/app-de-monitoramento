@@ -21,7 +21,9 @@ node scripts/sincronizar-lista-nominal.mjs --arquivo "C:/Users/Pichau/Downloads/
 > nos registros antigos. Sincronizar tudo desfaria essas correções (vínculo,
 > situação, telefone…). Nesse modo, as divergências só aparecem como
 > contagem, o `origem_id` de quem já existe não muda, e só o vínculo dos
-> registros novos entra no cadastro.
+> registros novos entra no cadastro. Um novo cujo título ou nome já exista no
+> banco (linha repetida mais abaixo na planilha) não é inserido e vai para os
+> avisos.
 
 Aceita `.xlsx` e `.csv`. **Prefira `.xlsx`:** ele guarda o valor numérico em
 precisão total, enquanto o CSV só carrega o texto que o Excel exibiu — se a
