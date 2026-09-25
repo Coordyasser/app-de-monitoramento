@@ -10,7 +10,7 @@ import { QualidadeCard }  from '@/components/dashboard/QualidadeCard'
 import { EstCard, type EstContagem } from '@/components/dashboard/EstCard'
 import { BairroRanking }  from '@/components/dashboard/BairroRanking'
 import { MunicipioRanking } from '@/components/dashboard/MunicipioRanking'
-import { VinculoRanking, type Vinculo } from '@/components/dashboard/VinculoRanking'
+import { VinculoRanking, type Vinculo, type VinculosPorEst } from '@/components/dashboard/VinculoRanking'
 import {
   DuplicadosCard, ZonaCoberturaCard,
   type Duplicado, type ZonaCobertura,
@@ -25,6 +25,7 @@ import type {
   Bairro, CoberturaBairro, CoberturaGeografica, Municipio,
 } from '@/components/dashboard/tipos'
 import type { RegistrosMetrics } from '@/types/database.types'
+import { SEM_EST } from '@/lib/est'
 import '@/components/dashboard/dash.css'
 
 /**
@@ -58,6 +59,7 @@ export function DashboardPage() {
   const [metrics, setMetrics] = useState<RegistrosMetrics | null>(null)
   const [serie,   setSerie]   = useState<DiaSerie[]>([])
   const [vinculos,      setVinculos]      = useState<Vinculo[]>([])
+  const [vinculosEst,   setVinculosEst]   = useState<VinculosPorEst | null>(null)
   const [zonas,         setZonas]         = useState<ZonaCobertura[]>([])
   const [duplicados,    setDuplicados]    = useState<Duplicado[]>([])
   const [bairros,       setBairros]       = useState<Bairro[]>([])
@@ -144,7 +146,11 @@ export function DashboardPage() {
     setErro(null)
 
     const pf = paramsFiltro(f)
-    const [m, v, z, d, b, mun, cob, cb, estAna, estGil, estBranco] = await Promise.all([
+    // Vínculos separados por Est, com o mesmo recorte de datas. Se o recorte
+    // já fixa um Est, a lista geral é a própria separação.
+    const vinculosDoEst = (est: string) =>
+      supabase.rpc('get_registros_por_vinculo', { p_limit: 200, ...paramsFiltro({ ...f, est }) })
+    const [[m, v, z, d, b, mun, cob, cb, estAna, estGil, estBranco], vEst] = await Promise.all([Promise.all([
       supabase.rpc('get_registros_metrics', pf),
       // Todos os vínculos: o gráfico existe para dar a dimensão do conjunto,
       // e cortar na 12ª liderança escondia dois terços da lista.
@@ -162,9 +168,11 @@ export function DashboardPage() {
       contarEst('Ana', f),
       contarEst('Gil', f),
       contarEst(null, f),
-    ])
+    ]), f.est
+      ? Promise.resolve(null)
+      : Promise.all([vinculosDoEst('Gil'), vinculosDoEst('Ana'), vinculosDoEst(SEM_EST)])])
 
-    const falha = [m, v, z, d, b, mun, cob, cb, estAna, estGil, estBranco].find(r => r.error)
+    const falha = [m, v, z, d, b, mun, cob, cb, estAna, estGil, estBranco, ...(vEst ?? [])].find(r => r.error)
     if (falha?.error) {
       setErro(falha.error.message)
       setFalhouCom(f)
@@ -172,6 +180,10 @@ export function DashboardPage() {
 
     if (m.data)   setMetrics(m.data as unknown as RegistrosMetrics)
     if (v.data)   setVinculos(v.data)
+    const [vGil, vAna, vSem] = vEst ?? []
+    setVinculosEst(vGil?.data && vAna?.data && vSem?.data
+      ? { Gil: vGil.data, Ana: vAna.data, SEM: vSem.data }
+      : null)
     if (z.data)   setZonas(z.data)
     if (d.data)   setDuplicados(d.data as Duplicado[])
     if (b.data)   setBairros(b.data as Bairro[])
@@ -305,7 +317,7 @@ export function DashboardPage() {
             </section>
 
             <section className="grid-12">
-              <VinculoRanking data={vinculos} loading={esqueleto} />
+              <VinculoRanking data={vinculos} porEst={vinculosEst} loading={esqueleto} />
             </section>
 
             <section className="grid-12">

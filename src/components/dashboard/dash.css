@@ -155,6 +155,7 @@
   background: var(--card); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(20, 20, 30, .08);
 }
 .dark .dash .segmented button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.14); box-shadow: none; }
+.dash .segmented .seg-count { font-size: 12px; color: var(--ink-3); font-weight: 500; }
 
 .dash .btn {
   height: 42px; padding: 0 18px; display: inline-flex; align-items: center; gap: 8px;
@@ -291,6 +292,12 @@
 .dash .person-val .num:first-child { font-size: 16px; font-weight: 500; }
 .dash .person-val .num:last-child { font-size: 11px; color: var(--ink-2); }
 .dash .show-more { align-self: center; }
+.dash .vinc-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; row-gap: 28px; }
+.dash .vinc-col { display: flex; flex-direction: column; min-width: 0; }
+.dash .vinc-col-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--row-line); font-size: 15px; }
+.dash .vinc-col-meta { font-size: 12px; color: var(--ink-2); }
+.dash .est-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; display: inline-block; }
+.dash .people.one-col { grid-template-columns: 1fr; }
 
 /* ── Cobertura por zona ─────────────────────────────────────── */
 
@@ -371,6 +378,7 @@
 }
 @media (max-width: 900px) {
   .dash .people { grid-template-columns: 1fr; }
+  .dash .vinc-split { grid-template-columns: 1fr; }
   .dash .legend { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
