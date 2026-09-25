@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { supabase }     from '@/lib/supabase'
 import { useAuth }      from '@/contexts/AuthContext'
@@ -16,6 +16,11 @@ import {
   type Duplicado, type ZonaCobertura,
 } from '@/components/dashboard/ListasDashboard'
 import { UltimosRegistros } from '@/components/dashboard/UltimosRegistros'
+import { exportarDashboardPDF } from '@/components/dashboard/exportarPdf'
+import { ExportarDashModal } from '@/components/dashboard/ExportarDashModal'
+import {
+  FILTRO_VAZIO, descreverFiltro, filtrarView, paramsFiltro, temFiltro, type FiltroDash,
+} from '@/components/dashboard/filtro'
 import type {
   Bairro, CoberturaBairro, CoberturaGeografica, Municipio,
 } from '@/components/dashboard/tipos'
@@ -36,10 +41,11 @@ const CAPITAL = 'TERESINA'
  * o RLS — admin conta a base toda, agente conta a sua. `head` traz só o número
  * no cabeçalho, sem nenhuma linha no corpo da resposta.
  */
-function contarEst(valor: string | null) {
-  const q = supabase
-    .from('vw_registros_detalhados')
-    .select('id', { count: 'exact', head: true })
+function contarEst(valor: string | null, filtro: FiltroDash) {
+  const q = filtrarView(
+    supabase.from('vw_registros_detalhados').select('id', { count: 'exact', head: true }),
+    filtro,
+  )
   return valor === null ? q.is('est', null) : q.eq('est', valor)
 }
 
@@ -66,34 +72,103 @@ export function DashboardPage() {
   const [erro,         setErro]         = useState<string | null>(null)
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null)
 
+  // ── Exportação em PDF ────────────────────────────────────────────────
+  //
+  // O recorte escolhido no popup é aplicado ao próprio dashboard, que é
+  // fotografado assim que todos os painéis tiverem chegado com ele, e depois
+  // volta ao geral. Cada carga anota com qual filtro terminou: comparar o
+  // objeto é o que garante que a foto não sai com dados do recorte anterior.
+  const paginaRef = useRef<HTMLDivElement>(null)
+  const [filtro,         setFiltro]         = useState<FiltroDash>(FILTRO_VAZIO)
+  const [modalAberto,    setModalAberto]    = useState(false)
+  const [exportando,     setExportando]     = useState(false)
+  const [erroExportacao, setErroExportacao] = useState<string | null>(null)
+  const [painelCom,  setPainelCom]  = useState<FiltroDash | null>(null)
+  const [serieCom,   setSerieCom]   = useState<FiltroDash | null>(null)
+  const [ultimosCom, setUltimosCom] = useState<FiltroDash | null>(null)
+  const [falhouCom,  setFalhouCom]  = useState<FiltroDash | null>(null)
+
+  async function gerarPDF(f: FiltroDash) {
+    setModalAberto(false)
+    setErroExportacao(null)
+    setExportando(true)
+
+    // Sem recorte, o que está na tela já é o que vai para o PDF: foto direta,
+    // sem recarregar nada.
+    if (!temFiltro(f)) {
+      try {
+        if (paginaRef.current) await exportarDashboardPDF(paginaRef.current)
+      } catch (e) {
+        setErroExportacao(`Não foi possível gerar o PDF: ${e instanceof Error ? e.message : String(e)}`)
+      } finally {
+        setExportando(false)
+      }
+      return
+    }
+    setFiltro({ ...f })
+  }
+
+  useEffect(() => {
+    if (!exportando || !temFiltro(filtro)) return
+    if (falhouCom === filtro) {
+      setErroExportacao(`Não foi possível aplicar o recorte: ${erro ?? 'erro ao carregar'}`)
+      setExportando(false)
+      setFiltro(FILTRO_VAZIO)
+      return
+    }
+    if (painelCom !== filtro || serieCom !== filtro || ultimosCom !== filtro) return
+    const raiz = paginaRef.current
+    if (!raiz) return
+
+    let ativo = true
+    // Um quadro para o React pintar os números novos antes da foto.
+    const quadro = requestAnimationFrame(async () => {
+      try {
+        await exportarDashboardPDF(raiz)
+      } catch (e) {
+        if (ativo) setErroExportacao(`Não foi possível gerar o PDF: ${e instanceof Error ? e.message : String(e)}`)
+      } finally {
+        if (ativo) {
+          setExportando(false)
+          setFiltro(FILTRO_VAZIO)
+        }
+      }
+    })
+    return () => { ativo = false; cancelAnimationFrame(quadro) }
+  }, [exportando, filtro, painelCom, serieCom, ultimosCom, falhouCom, erro])
+
   // ── Carga dos painéis ────────────────────────────────────────────────
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (f: FiltroDash) => {
     setLoading(true)
     setErro(null)
 
+    const pf = paramsFiltro(f)
     const [m, v, z, d, b, mun, cob, cb, estAna, estGil, estBranco] = await Promise.all([
-      supabase.rpc('get_registros_metrics'),
+      supabase.rpc('get_registros_metrics', pf),
       // Todos os vínculos: o gráfico existe para dar a dimensão do conjunto,
       // e cortar na 12ª liderança escondia dois terços da lista.
-      supabase.rpc('get_registros_por_vinculo',   { p_limit: 200 }),
-      supabase.rpc('get_registros_por_zona',      { p_limit: 8  }),
-      supabase.rpc('get_registros_duplicados',    { p_limit: 8  }),
+      supabase.rpc('get_registros_por_vinculo',   { p_limit: 200, ...pf }),
+      supabase.rpc('get_registros_por_zona',      { p_limit: 8, ...pf }),
+      supabase.rpc('get_registros_duplicados',    { p_limit: 8, ...pf }),
       // 70 bairros da capital têm registro. Mostrar todos deixaria o cartão
       // com quase dois mil pixels de altura; 25 cobre a maior parte e o
       // rodapé declara o resto.
-      supabase.rpc('get_registros_por_bairro',    { p_municipio: CAPITAL, p_limit: 25 }),
+      supabase.rpc('get_registros_por_bairro',    { p_municipio: CAPITAL, p_limit: 25, ...pf }),
       // O ranking inclui a capital, que aparece em bloco destacado.
-      supabase.rpc('get_registros_por_municipio', { p_limit: 60 }),
-      supabase.rpc('get_cobertura_geografica',    { p_capital: CAPITAL }),
-      supabase.rpc('get_cobertura_bairro',        { p_municipio: CAPITAL }),
-      contarEst('Ana'),
-      contarEst('Gil'),
-      contarEst(null),
+      supabase.rpc('get_registros_por_municipio', { p_limit: 60, ...pf }),
+      supabase.rpc('get_cobertura_geografica',    { p_capital: CAPITAL, ...pf }),
+      supabase.rpc('get_cobertura_bairro',        { p_municipio: CAPITAL, ...pf }),
+      contarEst('Ana', f),
+      contarEst('Gil', f),
+      contarEst(null, f),
     ])
 
     const falha = [m, v, z, d, b, mun, cob, cb, estAna, estGil, estBranco].find(r => r.error)
-    if (falha?.error) setErro(falha.error.message)
+    if (falha?.error) {
+      setErro(falha.error.message)
+      setFalhouCom(f)
+    }
 
     if (m.data)   setMetrics(m.data as unknown as RegistrosMetrics)
     if (v.data)   setVinculos(v.data)
@@ -113,22 +188,25 @@ export function DashboardPage() {
 
     setAtualizadoEm(new Date())
     setLoading(false)
+    setPainelCom(f)
   }, [])
 
-  useEffect(() => { carregar() }, [carregar])
+  useEffect(() => { carregar(filtro) }, [carregar, filtro])
 
   // Série temporal recarrega sozinha ao trocar o período. O seletor governa
   // só este gráfico, que é o escopo que ele tinha antes do redesenho.
   useEffect(() => {
     let ativo = true
     setSerieLoading(true)
-    supabase.rpc('get_registros_por_dia', { p_dias: periodo }).then(({ data }) => {
+    supabase.rpc('get_registros_por_dia', { p_dias: periodo, ...paramsFiltro(filtro) }).then(({ data, error }) => {
       if (!ativo) return
+      if (error) { setErro(error.message); setFalhouCom(filtro) }
       setSerie(data ?? [])
       setSerieLoading(false)
+      setSerieCom(filtro)
     })
     return () => { ativo = false }
-  }, [periodo])
+  }, [periodo, filtro])
 
   // ── Derivados ────────────────────────────────────────────────────────
 
@@ -143,11 +221,20 @@ export function DashboardPage() {
   const capitalMun = municipios.find(ehCapital)
   const interior   = municipios.filter(m => !ehCapital(m)).reduce((s, m) => s + m.total, 0)
 
+  // Esqueleto só na primeira carga. As recargas da exportação (com o recorte
+  // e de volta ao geral) trocam os números no lugar, sem a tela piscar.
+  const esqueleto      = loading && !atualizadoEm
+  const esqueletoSerie = serieLoading && serie.length === 0
+
+  const recorte = descreverFiltro(filtro)
+  // Com datas no recorte, o gráfico diário mostra o intervalo inteiro.
+  const serieNoIntervalo = Boolean(filtro.de || filtro.ate)
+
   // ── Render ───────────────────────────────────────────────────────────
 
   return (
     <AppShell>
-      <div className="dash dash-page">
+      <div className="dash dash-page" ref={paginaRef}>
         <DashHeader
           atualizadoEm={atualizadoEm}
           periodo={periodo}
@@ -155,7 +242,17 @@ export function DashboardPage() {
           aba={aba}
           onAba={setAba}
           mostrarEquipe={ehAdmin}
+          onExportar={() => setModalAberto(true)}
+          exportando={exportando || loading}
+          recorte={recorte}
         />
+
+        {erroExportacao && (
+          <div className="card" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, color: 'var(--danger-ink)' }}>
+            <AlertCircle size={16} />
+            {erroExportacao}
+          </div>
+        )}
 
         {erro && (
           <div className="card" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, color: 'var(--danger-ink)' }}>
@@ -179,13 +276,14 @@ export function DashboardPage() {
                 : undefined}
               serie={serie}
               periodo={periodo}
-              loading={loading}
-              serieLoading={serieLoading}
+              serieCompleta={serieNoIntervalo}
+              loading={esqueleto}
+              serieLoading={esqueletoSerie}
             />
 
             <section className="grid-12">
-              <QualidadeCard cobertura={cobertura} loading={loading} />
-              <EstCard data={est} loading={loading} />
+              <QualidadeCard cobertura={cobertura} loading={esqueleto} />
+              <EstCard data={est} loading={esqueleto} />
             </section>
 
             <section className="grid-12">
@@ -195,34 +293,40 @@ export function DashboardPage() {
                 cobertura={cobBairro}
                 interior={interior}
                 semLocalizacao={cobertura?.sem_localizacao ?? 0}
-                loading={loading}
+                loading={esqueleto}
               />
               <MunicipioRanking
                 capital={CAPITAL}
                 municipios={municipios}
                 localizados={localizados}
                 semCidade={cobertura?.sem_localizacao ?? 0}
-                loading={loading}
+                loading={esqueleto}
               />
             </section>
 
             <section className="grid-12">
-              <VinculoRanking data={vinculos} loading={loading} />
+              <VinculoRanking data={vinculos} loading={esqueleto} />
             </section>
 
             <section className="grid-12">
-              <ZonaCoberturaCard data={zonas}      loading={loading} />
-              <DuplicadosCard    data={duplicados} loading={loading} />
+              <ZonaCoberturaCard data={zonas}      loading={esqueleto} />
+              <DuplicadosCard    data={duplicados} loading={esqueleto} />
             </section>
 
             <section className="grid-12">
-              <UltimosRegistros duplicados={duplicados} />
+              <UltimosRegistros duplicados={duplicados} filtro={filtro} onPronto={setUltimosCom} />
             </section>
           </>
         ) : (
           ehAdmin && <AgentesTable />
         )}
       </div>
+
+      <ExportarDashModal
+        open={modalAberto}
+        onClose={() => setModalAberto(false)}
+        onGerar={gerarPDF}
+      />
     </AppShell>
   )
 }

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { FileDown, Loader2, Plus } from 'lucide-react'
+import { PDF_IGNORAR } from './exportarPdf'
 
 export type Periodo = 7 | 30 | 90
 export type Aba     = 'visao' | 'equipe'
@@ -13,6 +14,10 @@ interface Props {
   aba:          Aba
   onAba:        (a: Aba) => void
   mostrarEquipe: boolean
+  onExportar:   () => void
+  exportando:   boolean
+  /** Recorte aplicado, descrito — aparece no PDF */
+  recorte?:     string
 }
 
 /**
@@ -23,7 +28,7 @@ interface Props {
  * todas as RPCs, o que é mudança de backend.
  */
 export function DashHeader({
-  atualizadoEm, periodo, onPeriodo, aba, onAba, mostrarEquipe,
+  atualizadoEm, periodo, onPeriodo, aba, onAba, mostrarEquipe, onExportar, exportando, recorte,
 }: Props) {
   return (
     <>
@@ -42,9 +47,10 @@ export function DashHeader({
           </div>
           <h1 className="page-title">Dashboard</h1>
           <p className="card-sub">Consolidação dos registros de toda a equipe</p>
+          {recorte && <p className="card-sub"><strong>Recorte:</strong> {recorte}</p>}
         </div>
 
-        <div className="pagehead-actions">
+        <div className="pagehead-actions" {...{ [PDF_IGNORAR]: '' }}>
           <div className="segmented" role="group" aria-label="Período do gráfico diário">
             {PERIODOS.map(p => (
               <button
@@ -57,6 +63,16 @@ export function DashHeader({
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={onExportar}
+            disabled={exportando}
+            title="Baixa o dashboard em PDF, com gráficos e cores como na tela"
+          >
+            {exportando ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+            {exportando ? 'Gerando PDF...' : 'Exportar PDF'}
+          </button>
           <Link to="/registros/novo" className="btn btn-primary">
             <Plus size={16} />
             Novo registro
@@ -64,7 +80,7 @@ export function DashHeader({
         </div>
       </header>
 
-      <div className="tabs" role="tablist" aria-label="Visões do dashboard">
+      <div className="tabs" role="tablist" aria-label="Visões do dashboard" {...{ [PDF_IGNORAR]: '' }}>
         <button
           type="button" role="tab"
           aria-selected={aba === 'visao'}

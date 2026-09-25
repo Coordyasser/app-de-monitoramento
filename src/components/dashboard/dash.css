@@ -162,6 +162,8 @@
   font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer;
 }
 .dash .btn:hover { background: var(--row-hover); }
+.dash .btn:disabled { opacity: .6; cursor: default; }
+.dash .btn:disabled:hover { background: var(--card); }
 .dash .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .dash .btn-primary:hover { background: #3A31AE; }
 .dark .dash .btn-primary { color: #15161A; }

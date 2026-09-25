@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertCircle, ChevronRight, MapPin } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { filtrarView, type FiltroDash } from './filtro'
 import { capitalizarLugar, ehNaoConsta } from '@/lib/texto'
 import { situacaoEfetiva } from '@/lib/situacao'
 import { formatarTitulo } from '@/lib/titulo'
@@ -14,6 +15,10 @@ const COLUNAS = 'id,nome,contato,titulo,vinculo,cidade,zona,secao,created_at,sit
 const LIMITE  = 8
 
 interface Props {
+  /** Recorte da exportação; a tabela segue o resto do dashboard */
+  filtro: FiltroDash
+  /** Avisa com qual recorte a tabela terminou de carregar */
+  onPronto?: (f: FiltroDash) => void
   /** Já carregados no dashboard — a marca "repetido" sai daqui, sem nova consulta */
   duplicados: Duplicado[]
 }
@@ -29,7 +34,7 @@ const COR_EST: Record<string, string> = {
   Gil: 'var(--est-b)',
 }
 
-export function UltimosRegistros({ duplicados }: Props) {
+export function UltimosRegistros({ duplicados, filtro, onPronto }: Props) {
   const navigate = useNavigate()
   const [linhas,  setLinhas]  = useState<RegistroDetalhado[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,19 +42,19 @@ export function UltimosRegistros({ duplicados }: Props) {
 
   useEffect(() => {
     let ativo = true
-    supabase
-      .from('vw_registros_detalhados')
-      .select(COLUNAS)
+    filtrarView(supabase.from('vw_registros_detalhados').select(COLUNAS), filtro)
       .order('created_at', { ascending: false })
       .limit(LIMITE)
       .then(({ data, error }) => {
         if (!ativo) return
         setLoading(false)
+        onPronto?.(filtro)
         if (error) { setErro(error.message); return }
+        setErro(null)
         setLinhas((data as RegistroDetalhado[]) ?? [])
       })
     return () => { ativo = false }
-  }, [])
+  }, [filtro, onPronto])
 
   // Telefone repetido: comparação por dígitos, porque a planilha grava
   // "(86) 98140-4098" e "86981404098" para o mesmo número.

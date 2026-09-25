@@ -321,16 +321,17 @@ export type Database = {
     }
     Functions: {
       get_dashboard_metrics: { Args: never; Returns: Json }
-      get_registros_metrics: { Args: never; Returns: Json }
+      // p_de/p_ate/p_est: recorte do dashboard (migration 018)
+      get_registros_metrics: { Args: { p_de?: string | null; p_ate?: string | null; p_est?: string | null }; Returns: Json }
       get_registros_por_dia: {
-        Args: { p_dias?: number }
+        Args: { p_dias?: number; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: {
           dia: string
           total: number
         }[]
       }
       get_registros_por_vinculo: {
-        Args: { p_limit?: number }
+        Args: { p_limit?: number; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: {
           total: number
           vinculo: string
@@ -344,7 +345,7 @@ export type Database = {
         }[]
       }
       get_registros_por_zona: {
-        Args: { p_limit?: number }
+        Args: { p_limit?: number; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: {
           cidade: string
           secoes: number
@@ -353,7 +354,7 @@ export type Database = {
         }[]
       }
       get_registros_por_municipio: {
-        Args: { p_limit?: number; p_excluir?: string }
+        Args: { p_limit?: number; p_excluir?: string; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: {
           municipio: string
           total: number
@@ -362,7 +363,7 @@ export type Database = {
         }[]
       }
       get_registros_por_bairro: {
-        Args: { p_municipio: string; p_limit?: number }
+        Args: { p_municipio: string; p_limit?: number; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: {
           bairro: string
           total: number
@@ -370,11 +371,11 @@ export type Database = {
         }[]
       }
       get_cobertura_geografica: {
-        Args: { p_capital?: string }
+        Args: { p_capital?: string; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: Json
       }
       get_cobertura_bairro: {
-        Args: { p_municipio: string }
+        Args: { p_municipio: string; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: {
           total: number
           com_bairro: number
@@ -390,7 +391,7 @@ export type Database = {
         }[]
       }
       get_registros_duplicados: {
-        Args: { p_limit?: number }
+        Args: { p_limit?: number; p_de?: string | null; p_ate?: string | null; p_est?: string | null }
         Returns: {
           contato: string
           nomes: string[]

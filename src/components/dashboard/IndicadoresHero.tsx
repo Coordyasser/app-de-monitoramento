@@ -17,6 +17,8 @@ interface Props {
   capital?:   { nome: string; pct: number }
   serie:      DiaSerie[]
   periodo:    Periodo
+  /** A série já vem no intervalo do recorte: mostra inteira, sem cortar em `periodo` */
+  serieCompleta?: boolean
   loading:    boolean
   serieLoading: boolean
 }
@@ -31,12 +33,12 @@ interface Props {
  */
 export function IndicadoresHero({
   total, hoje, semana, variacao, cidades, zonas, secoes, capital,
-  serie, periodo, loading, serieLoading,
+  serie, periodo, serieCompleta = false, loading, serieLoading,
 }: Props) {
   const subiu = variacao >= 0
   // A RPC já devolve a série sem buracos (generate_series), então não há dia
   // faltando para completar aqui.
-  const dias  = serie.slice(-periodo)
+  const dias  = serieCompleta ? serie : serie.slice(-periodo)
   const maior = Math.max(1, ...dias.map(d => d.total))
   const somaPeriodo = dias.reduce((s, d) => s + d.total, 0)
 
@@ -75,7 +77,9 @@ export function IndicadoresHero({
         <div className="hero-chart">
           <div className="hero-chart-head">
             <strong style={{ fontSize: 14, fontWeight: 600 }}>
-              Registros por dia, {periodo} dias
+              Registros por dia, {serieCompleta && dias.length
+                ? `${ddmm(new Date(`${dias[0].dia}T12:00:00`))} a ${ddmm(new Date(`${dias[dias.length - 1].dia}T12:00:00`))}`
+                : `${periodo} dias`}
             </strong>
             <small>{serieLoading ? 'carregando...' : `${numero(somaPeriodo)} no período`}</small>
           </div>
@@ -83,7 +87,7 @@ export function IndicadoresHero({
           <div
             className="bars"
             role="img"
-            aria-label={`${numero(somaPeriodo)} registros nos últimos ${periodo} dias`}
+            aria-label={`${numero(somaPeriodo)} registros em ${dias.length} dias`}
           >
             {dias.map(d => (
               <span
