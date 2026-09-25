@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -70,20 +70,34 @@ function validarLocalizacao(loc: LocalizacaoRegistro): LocalizacaoErrors {
 
 // ── Página ─────────────────────────────────────────────────────────────────
 
+// Cada chegada à página é um formulário novo. O React Router reaproveita o
+// componente quando se navega para a mesma rota (o botão "Novo registro" do
+// menu, estando já no formulário), e com ele iam o estado dos campos e o da
+// localização. A chave da navegação força a montagem do zero.
 export function NovoRegistroPage() {
+  const { key } = useLocation()
+  return <FormularioNovoRegistro key={key} />
+}
+
+function FormularioNovoRegistro() {
   const navigate  = useNavigate()
+  const location  = useLocation()
   const { user }  = useAuth()
 
   const [localizacao,    setLocalizacao]    = useState<LocalizacaoRegistro>(LOCALIZACAO_VAZIA)
   const [localizacaoErr, setLocalizacaoErr] = useState<LocalizacaoErrors>({})
   const [serverError,    setServerError]    = useState<string | null>(null)
-  const [sucesso,        setSucesso]        = useState<string | null>(null)
+  // Recado do registro anterior, quando se chega por "Salvar e adicionar outro".
+  const sucesso = (location.state as { salvo?: string } | null)?.salvo ?? null
 
-  // "Salvar e adicionar outro" mantém a localização e limpa o resto
+  useEffect(() => {
+    if (sucesso) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [sucesso])
+
   const continuarRef = useRef(false)
 
   const {
-    register, handleSubmit, watch, reset, setValue,
+    register, handleSubmit, watch, setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -106,7 +120,6 @@ export function NovoRegistroPage() {
 
   async function onSubmit(values: FormValues) {
     setServerError(null)
-    setSucesso(null)
 
     const erros = validarLocalizacao(localizacao)
     setLocalizacaoErr(erros)
@@ -145,11 +158,13 @@ export function NovoRegistroPage() {
       return
     }
 
+    // O próximo começa em branco, localização inclusive: navegar de novo
+    // para a rota remonta o formulário (ver NovoRegistroPage).
     if (continuarRef.current) {
-      continuarRef.current = false
-      reset(VALORES_INICIAIS)
-      setSucesso(`Registro de ${values.nome.trim()} salvo. Pode seguir para o próximo.`)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      navigate('/registros/novo', {
+        replace: true,
+        state: { salvo: `Registro de ${values.nome.trim()} salvo. Pode seguir para o próximo.` },
+      })
       return
     }
 
@@ -304,9 +319,6 @@ export function NovoRegistroPage() {
                 {' '}na página do registro.
               </p>
             )}
-            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              "Salvar e adicionar outro" mantém a localização preenchida para o próximo registro.
-            </p>
           </Card>
 
         </form>
