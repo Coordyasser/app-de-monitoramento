@@ -68,7 +68,7 @@ export function DashboardPage() {
   const [cobBairro,     setCobBairro]     = useState<CoberturaBairro | null>(null)
   const [est,           setEst]           = useState<EstContagem | null>(null)
 
-  const [periodo,      setPeriodo]      = useState<Periodo>(30)
+  const [periodo,      setPeriodo]      = useState<Periodo>(15)
   const [loading,      setLoading]      = useState(true)
   const [serieLoading, setSerieLoading] = useState(true)
   const [erro,         setErro]         = useState<string | null>(null)
